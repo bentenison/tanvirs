@@ -1,0 +1,78 @@
+/*
+ * CSS-side motion tokens. Spring physics live in src/engine/physics;
+ * these easings approximate the same presets for CSS/WAAPI transitions.
+ */
+:root {
+  --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-ui: cubic-bezier(0.2, 0.9, 0.3, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-ui: 160ms;
+  --dur-premium: 520ms;
+}
+
+:root[data-motion='reduced'] {
+  --dur-premium: 200ms;
+}
+
+:root[data-motion='minimal'] {
+  --dur-ui: 0ms;
+  --dur-premium: 0ms;
+}
+
+:root[data-motion='minimal'] *,
+:root[data-motion='minimal'] *::before,
+:root[data-motion='minimal'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Reveal: elements are visible by default; JS opts them into the animation. */
+.js [data-reveal].is-pending {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+}
+
+@media (scripting: none) {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* View transitions */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 360ms;
+  animation-timing-function: var(--ease-premium);
+}
+::view-transition-old(root) {
+  animation-name: vt-out;
+}
+::view-transition-new(root) {
+  animation-name: vt-in;
+}
+::view-transition-group(*) {
+  animation-duration: 520ms;
+  animation-timing-function: var(--ease-premium);
+}
+
+@keyframes vt-out {
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+@keyframes vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+:root[data-motion='minimal']::view-transition-group(*),
+:root[data-motion='minimal']::view-transition-old(*),
+:root[data-motion='minimal']::view-transition-new(*) {
+  animation: none !important;
+}

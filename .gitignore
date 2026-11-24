@@ -1,0 +1,28 @@
+# Personal source material — never publish
+resume.txt
+
+# Build output
+/bin/
+/internal/web/dist/*
+!/internal/web/dist/.gitkeep
+/frontend/dist/
+/frontend/dist-ssr/
+
+# Dependencies and tooling
+/frontend/node_modules/
+/frontend/test-results/
+/frontend/playwright-report/
+/frontend/.vite/
+*.log
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db

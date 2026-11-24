@@ -1,0 +1,133 @@
+/*
+ * Semantic design tokens. Light ("Paper") and dark ("Graphite") are tuned
+ * independently, dark is not an inversion of light.
+ */
+:root {
+  color-scheme: light;
+
+  --bg: #f2efe7;
+  --bg-deep: #e9e5da;
+  --surface: #faf8f3;
+  --surface-raised: #ffffff;
+  --surface-sunken: #ebe7dd;
+  --text: #17160f;
+  --text-muted: #5d5a50;
+  --text-faint: #6f6b60;
+  --border: #dad5c8;
+  --border-strong: #b9b3a3;
+
+  /* Chlorophyll: the computational accent. Fill for shapes, ink for text. */
+  --accent: #b8e62e;
+  --accent-ink: #3d6a00;
+  --accent-soft: #e4f3b8;
+  --on-accent: #17160f;
+
+  /* Coral: reserved for tension, load and failure. */
+  --tension: #d9482b;
+  --tension-soft: #f7d9cf;
+
+  --interactive: #17160f;
+  --interactive-hover: #3d6a00;
+  --focus-ring: #17160f;
+  --focus-halo: #b8e62e;
+
+  --success: #2f7d4a;
+  --error: #b3261e;
+
+  /* Organism shading (read by the renderer). */
+  --organism-body: #1d1c16;
+  --organism-rim: #4a483d;
+  --organism-light: #8d8a7c;
+  --organism-dot: #cfc9b9;
+
+  --shadow-raised: 0 1px 0 rgb(23 22 15 / 0.04), 0 12px 32px -12px rgb(23 22 15 / 0.18);
+  --shadow-float: 0 2px 0 rgb(23 22 15 / 0.04), 0 30px 60px -20px rgb(23 22 15 / 0.28);
+
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+
+  --gutter: clamp(1.25rem, 4vw, 3.5rem);
+  --measure: 66ch;
+  --nav-h: 4.25rem;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #121311;
+  --bg-deep: #0d0e0c;
+  --surface: #1a1c19;
+  --surface-raised: #232622;
+  --surface-sunken: #161815;
+  --text: #eceae2;
+  --text-muted: #a3a196;
+  --text-faint: #8f8d83;
+  --border: #30332e;
+  --border-strong: #4a4e47;
+
+  --accent: #c4f03c;
+  --accent-ink: #c4f03c;
+  --accent-soft: #2a3313;
+  --on-accent: #121311;
+
+  --tension: #ff7a5c;
+  --tension-soft: #3a211b;
+
+  --interactive: #eceae2;
+  --interactive-hover: #c4f03c;
+  --focus-ring: #eceae2;
+  --focus-halo: #6f8f1a;
+
+  --success: #6fd08c;
+  --error: #ff8a80;
+
+  --organism-body: #2a2d27;
+  --organism-rim: #5b6055;
+  --organism-light: #b9bdaf;
+  --organism-dot: #34372f;
+
+  --shadow-raised: 0 1px 0 rgb(0 0 0 / 0.3), 0 12px 32px -12px rgb(0 0 0 / 0.6);
+  --shadow-float: 0 2px 0 rgb(0 0 0 / 0.3), 0 30px 60px -20px rgb(0 0 0 / 0.75);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --bg: #121311;
+    --bg-deep: #0d0e0c;
+    --surface: #1a1c19;
+    --surface-raised: #232622;
+    --surface-sunken: #161815;
+    --text: #eceae2;
+    --text-muted: #a3a196;
+    --text-faint: #8f8d83;
+    --border: #30332e;
+    --border-strong: #4a4e47;
+
+    --accent: #c4f03c;
+    --accent-ink: #c4f03c;
+    --accent-soft: #2a3313;
+    --on-accent: #121311;
+
+    --tension: #ff7a5c;
+    --tension-soft: #3a211b;
+
+    --interactive: #eceae2;
+    --interactive-hover: #c4f03c;
+    --focus-ring: #eceae2;
+    --focus-halo: #6f8f1a;
+
+    --success: #6fd08c;
+    --error: #ff8a80;
+
+    --organism-body: #2a2d27;
+    --organism-rim: #5b6055;
+    --organism-light: #b9bdaf;
+    --organism-dot: #34372f;
+
+    --shadow-raised: 0 1px 0 rgb(0 0 0 / 0.3), 0 12px 32px -12px rgb(0 0 0 / 0.6);
+    --shadow-float: 0 2px 0 rgb(0 0 0 / 0.3), 0 30px 60px -20px rgb(0 0 0 / 0.75);
+  }
+}

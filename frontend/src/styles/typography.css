@@ -1,0 +1,115 @@
+/* Self-hosted, latin-subset WOFF2 (SIL OFL 1.1). See LICENSES.md. */
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../node_modules/@fontsource/instrument-serif/files/instrument-serif-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../node_modules/@fontsource/instrument-serif/files/instrument-serif-latin-400-italic.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../../node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2') format('woff2-variations');
+}
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../../node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+/* Metric-matched fallbacks so the swap does not shift layout. */
+@font-face {
+  font-family: 'Serif Fallback';
+  src: local('Times New Roman'), local('Georgia');
+  size-adjust: 92%;
+  ascent-override: 96%;
+  descent-override: 26%;
+}
+@font-face {
+  font-family: 'Sans Fallback';
+  src: local('Arial'), local('Helvetica');
+  size-adjust: 103%;
+  ascent-override: 92%;
+  descent-override: 24%;
+}
+
+:root {
+  --font-display: 'Instrument Serif', 'Serif Fallback', Georgia, serif;
+  --font-sans: 'Geist', 'Sans Fallback', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  /* Fluid scale: ~1.25 on phones → ~1.333 on wide screens. */
+  --step--2: clamp(0.72rem, 0.7rem + 0.08vw, 0.78rem);
+  --step--1: clamp(0.84rem, 0.82rem + 0.1vw, 0.9rem);
+  --step-0: clamp(1.0625rem, 1.03rem + 0.16vw, 1.1875rem);
+  --step-1: clamp(1.3rem, 1.22rem + 0.38vw, 1.58rem);
+  --step-2: clamp(1.62rem, 1.45rem + 0.8vw, 2.1rem);
+  --step-3: clamp(2.03rem, 1.7rem + 1.5vw, 2.8rem);
+  --step-4: clamp(2.5rem, 1.9rem + 2.8vw, 4.2rem);
+  --step-5: clamp(3.25rem, 2.1rem + 5.4vw, 6.6rem);
+  --step-hero: clamp(3.25rem, 1.6rem + 7.6vw, 9.5rem);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  font-feature-settings: 'ss01', 'cv11';
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.display em,
+.display i {
+  font-style: italic;
+}
+
+.caption {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.lede {
+  font-size: var(--step-1);
+  line-height: 1.45;
+  color: var(--text-muted);
+  max-width: 34ch;
+  text-wrap: pretty;
+}
+
+.prose {
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+.prose p + p {
+  margin-top: 1em;
+}
