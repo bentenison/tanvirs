@@ -17,8 +17,8 @@ const run = (m: OrganismModel, s: number) => {
 }
 
 describe('OrganismModel', () => {
-  it('packs one core, one blob per lobe and two neck bridges per lobe', () => {
-    expect(model().blobs.length).toBe(1 + specs.length * 3)
+  it('packs one core, one blob per lobe and four neck segments per lobe', () => {
+    expect(model().blobs.length).toBe(1 + specs.length * 5)
   })
 
   it('rests with no tension', () => {
@@ -39,12 +39,12 @@ describe('OrganismModel', () => {
     expect(stretched.x).toBeGreaterThan(start.x + 80)
     expect(m.blobs[1 + i].tension).toBeGreaterThan(0.2)
     // Necks thin under strain.
-    const stretchedBridgeR = m.blobs[1 + specs.length + i * 2 + 1].r
+    const stretchedBridgeR = m.blobs[1 + specs.length + i * 4 + 3].r
     m.endDrag(0, 0)
     run(m, 3)
     const back = m.lobePosition(i)
     expect(Math.abs(back.x - start.x)).toBeLessThan(2)
-    expect(m.blobs[1 + specs.length + i * 2 + 1].r).toBeGreaterThan(stretchedBridgeR)
+    expect(m.blobs[1 + specs.length + i * 4 + 3].r).toBeGreaterThan(stretchedBridgeR)
   })
 
   it('rubber-bands extreme drags', () => {
@@ -70,7 +70,7 @@ describe('OrganismModel', () => {
     const before = m.lobeRadius(2)
     m.focus(2, ['a', 'b', 'c'])
     run(m, 1)
-    expect(m.lobeRadius(2)).toBeGreaterThan(before * 1.5)
+    expect(m.lobeRadius(2)).toBeGreaterThan(before * 1.3)
     expect(m.organelles.map((o) => o.id)).toEqual(['a', 'b', 'c'])
   })
 

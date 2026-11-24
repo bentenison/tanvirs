@@ -20,7 +20,8 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
-    cssCodeSplit: true,
+    // One stylesheet: prerendered routes must be fully styled before any JS runs (no CLS).
+    cssCodeSplit: false,
     sourcemap: false,
     assetsInlineLimit: 0,
     rolldownOptions: {

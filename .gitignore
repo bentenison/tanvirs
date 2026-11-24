@@ -26,3 +26,6 @@ resume.txt
 .idea/
 .DS_Store
 Thumbs.db
+
+# Private interview preparation notes
+/interview-prep/

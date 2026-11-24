@@ -182,14 +182,14 @@ export const projects: Project[] = [
       'A metadata-driven platform that turns entities, fields, forms and workflows into secure multi-tenant business applications on PostgreSQL, with reviewed schema migrations, server-side authorization and an SDK to extend it.',
     audience: 'Teams building internal and SaaS business applications',
     url: 'https://forge.alwaysdata.net/welcome',
-    stack: ['Go', 'Vue', 'PostgreSQL', 'WebAssembly'],
+    stack: ['Go', 'Vue', 'PostgreSQL'],
     domains: ['backend', 'data', 'tooling', 'infrastructure'],
     surface: 'forge',
     highlights: [
       'One Go binary plus PostgreSQL',
       'Row-level security per organisation',
       'Previewed, transactional schema migrations',
-      'Sandboxed WebAssembly extensions',
+      'Extension SDK that never touches the core',
     ],
     capabilities: [
       {
@@ -199,7 +199,7 @@ export const projects: Project[] = [
           'Generated lists, forms, detail pages and REST API',
           'Workflows with parallel approvals, timers and escalations',
           'Releases with previewed migrations and one-step rollback',
-          'Go SDK, sandboxed WebAssembly hooks and UI components',
+          'Go SDK packages and UI components to extend it',
         ],
       },
     ],

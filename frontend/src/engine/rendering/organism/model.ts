@@ -58,7 +58,8 @@ interface Lobe {
 }
 
 const TAU = Math.PI * 2
-const BRIDGE_T = [0.42, 0.7]
+/** Positions of the neck segments along core -> lobe; they overlap into one continuous membrane. */
+const BRIDGE_T = [0.36, 0.48, 0.6, 0.72]
 
 export interface OrganismLayout {
   width: number
@@ -68,6 +69,10 @@ export interface OrganismLayout {
   originY: number
   /** Overall size multiplier. */
   scale: number
+  /** While a lobe is focused, move and shrink the body to make room for the details panel. */
+  focusShiftX?: number
+  focusShiftY?: number
+  focusScale?: number
 }
 
 export class OrganismModel {
@@ -83,6 +88,9 @@ export class OrganismModel {
   private lean: Spring2D = new Spring2D(0, 0, 'organic')
   private core: Spring = new Spring(1, 'organic')
   private coreFocus: Spring = new Spring(0, 'premium')
+  private shiftX: Spring = new Spring(0, 'premium')
+  private shiftY: Spring = new Spring(0, 'premium')
+  private zoom: Spring = new Spring(1, 'premium')
   private mode: OrganismMode = { kind: 'whole' }
   private time = 0
   /** Idle breathing and drift on/off (reduced motion turns it off). */
@@ -98,8 +106,8 @@ export class OrganismModel {
       dragging: false,
       phase: (i * 2.399) % TAU,
     }))
-    // core + lobes + 2 bridges per lobe
-    this.blobs = Array.from({ length: 1 + specs.length * 3 }, () => ({
+    // core + lobes + neck segments per lobe
+    this.blobs = Array.from({ length: 1 + specs.length * (1 + BRIDGE_T.length) }, () => ({
       x: 0,
       y: 0,
       r: 0,
@@ -112,11 +120,14 @@ export class OrganismModel {
   }
 
   get unit(): number {
-    return Math.min(this.layout.width, this.layout.height) * this.layout.scale
+    return Math.min(this.layout.width, this.layout.height) * this.layout.scale * this.zoom.value
   }
 
   get origin(): { x: number; y: number } {
-    return { x: this.layout.width * this.layout.originX, y: this.layout.height * this.layout.originY }
+    return {
+      x: this.layout.width * (this.layout.originX + this.shiftX.value),
+      y: this.layout.height * (this.layout.originY + this.shiftY.value),
+    }
   }
 
   get coreRadius(): number {
@@ -144,7 +155,7 @@ export class OrganismModel {
     const lobe = this.lobes[i]
     const anyFocus = this.focusedIndex >= 0 && this.focusedIndex !== i
     const base = this.unit * 0.066 * lobe.spec.weight
-    return base * (1 + lobe.focus.value * 0.75) * (anyFocus ? 0.9 : 1) * (0.55 + 0.45 * lobe.presence.value)
+    return base * (1 + lobe.focus.value * 0.4) * (anyFocus ? 0.94 : 1) * (0.6 + 0.4 * lobe.presence.value)
   }
 
   setMode(mode: OrganismMode): void {
@@ -162,8 +173,8 @@ export class OrganismModel {
           break
         case 'product': {
           const on = mode.domains.includes(lobe.spec.id)
-          reach = on ? 0.92 : 1.32
-          presence = on ? 1 : 0.35
+          reach = on ? 1.1 : 0.8
+          presence = on ? 1 : 0.4
           break
         }
       }
@@ -199,6 +210,10 @@ export class OrganismModel {
     this.organelleIds = organelleIds
     this.lobes.forEach((l, i) => (l.focus.target = i === index ? 1 : 0))
     this.coreFocus.target = index === -2 ? 1 : 0
+    const on = index !== -1
+    this.shiftX.target = on ? (this.layout.focusShiftX ?? 0) : 0
+    this.shiftY.target = on ? (this.layout.focusShiftY ?? 0) : 0
+    this.zoom.target = on ? (this.layout.focusScale ?? 1) : 1
   }
 
   get focused(): number {
@@ -257,6 +272,9 @@ export class OrganismModel {
       l.pos.snap(a.x, a.y)
     })
     this.lean.snap(0, 0)
+    this.shiftX.snap(this.shiftX.target)
+    this.shiftY.snap(this.shiftY.target)
+    this.zoom.snap(this.zoom.target)
     this.pack(0)
   }
 
@@ -266,6 +284,9 @@ export class OrganismModel {
     return (
       this.lean.settled &&
       this.core.settled &&
+      this.shiftX.settled &&
+      this.shiftY.settled &&
+      this.zoom.settled &&
       this.coreFocus.settled &&
       this.lobes.every((l) => l.pos.settled && l.focus.settled && l.reach.settled && l.presence.settled)
     )
@@ -273,6 +294,9 @@ export class OrganismModel {
 
   step(dt: number): void {
     this.time += dt
+    this.shiftX.step(dt)
+    this.shiftY.step(dt)
+    this.zoom.step(dt)
     const U = this.unit
     const o = this.origin
 
@@ -316,8 +340,10 @@ export class OrganismModel {
         const dy = this.dragTarget.y - a.y
         const d = Math.hypot(dx, dy) || 1
         const banded = rubberBand(d, U * 0.16, 0.6)
-        const nx = a.x + (dx / d) * banded
-        const ny = a.y + (dy / d) * banded
+        // Keep the whole lobe on the canvas.
+        const margin = this.lobeRadius(i) * 1.3
+        const nx = Math.min(this.layout.width - margin, Math.max(margin, a.x + (dx / d) * banded))
+        const ny = Math.min(this.layout.height - margin, Math.max(margin, a.y + (dy / d) * banded))
         // Drag directly drives the spring target; stiffer while held.
         lobe.pos.set({ stiffness: 900, damping: 48, mass: 1 })
         lobe.pos.setTarget(nx, ny)
@@ -376,17 +402,25 @@ export class OrganismModel {
       b.tension = tension
       b.presence = lobe.presence.value
 
-      // Neck: bridges thin with strain but never vanish until extreme pulls.
+      // Neck: a chain of overlapping segments from the core to the lobe. Under strain the
+      // segments elongate along the neck and narrow across it, so the membrane stretches
+      // thin instead of breaking apart.
+      const segs = BRIDGE_T.length
+      const spacing = (BRIDGE_T[1] - BRIDGE_T[0]) * len
+      const thin = 1 / (1 + strain * 0.9)
       BRIDGE_T.forEach((t, k) => {
-        const bb = this.blobs[1 + n + i * 2 + k]
+        const bb = this.blobs[1 + n + i * segs + k]
         bb.x = core.x + ex * t
         bb.y = core.y + ey * t
-        const base = k === 0 ? core.r * 0.36 + r * 0.16 : r * 0.42
-        const thin = 1 / (1 + strain * 2.2)
-        bb.r = base * thin * (0.6 + 0.4 * lobe.presence.value) * Math.min(1, len / (core.r * 1.2))
+        // Wider where it meets the core, tapering toward the lobe.
+        const taper = 1 - (k / (segs - 1)) * 0.25
+        const radius = Math.max(r * 0.22, r * 0.4 * taper * thin)
+        bb.r = radius * (0.7 + 0.3 * lobe.presence.value) * Math.min(1, len / (core.r * 1.2))
         bb.dx = ex / len
         bb.dy = ey / len
-        bb.stretch = 1 + Math.min(0.9, strain * 0.8)
+        // Elongate enough that neighbouring segments always overlap.
+        const need = (spacing * 0.75) / Math.max(1, bb.r * 1.15)
+        bb.stretch = Math.min(3.2, Math.max(1, need))
         bb.tension = tension
         bb.presence = lobe.presence.value
       })

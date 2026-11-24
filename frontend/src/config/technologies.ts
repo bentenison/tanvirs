@@ -203,13 +203,6 @@ export const technologies: Technology[] = [
     projects: ['eduflow', 'kreovio', 'forge', 'flowq'],
   },
   {
-    id: 'typescript',
-    name: 'TypeScript',
-    domain: 'frontend',
-    role: 'Typed front-end code and shared models.',
-    capabilities: ['Typed API clients and models', 'Safer refactoring'],
-  },
-  {
     id: 'javascript',
     name: 'JavaScript',
     domain: 'frontend',
@@ -252,14 +245,6 @@ export const technologies: Technology[] = [
     domain: 'tooling',
     role: 'Turning data models into working applications.',
     capabilities: ['Metadata-driven generation', 'Form, page and workflow designers'],
-    projects: ['forge'],
-  },
-  {
-    id: 'wasm',
-    name: 'WebAssembly',
-    domain: 'tooling',
-    role: 'Sandboxed extension points.',
-    capabilities: ['Isolated plugin hooks'],
     projects: ['forge'],
   },
   // AI

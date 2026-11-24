@@ -1,5 +1,5 @@
 <template>
-  <section ref="root" class="sim" :aria-labelledby="`${id}-title`">
+  <section :id="id" ref="root" class="sim" :aria-labelledby="`${id}-title`">
     <header class="sim__head">
       <div>
         <p class="margin-note"><b>{{ index }}</b><span>{{ kicker }}</span></p>

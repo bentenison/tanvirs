@@ -76,7 +76,10 @@ const specs = domains.map((d) => ({ id: d.id, angle: d.angle, weight: d.weight }
 
 function layoutFor(w: number, _h: number) {
   const narrow = w < 640
-  return { originX: 0.5, originY: 0.5, scale: narrow ? 0.92 : 0.94 }
+  // On desktop the details panel sits bottom-left, so a focused body moves up and right.
+  return narrow
+    ? { originX: 0.5, originY: 0.5, scale: 0.92 }
+    : { originX: 0.5, originY: 0.5, scale: 0.94, focusShiftX: 0.1, focusShiftY: -0.14, focusScale: 0.72 }
 }
 
 // Rest pose for the server-rendered specimen.
@@ -238,13 +241,23 @@ export default defineComponent({
         const dx = p.x - core.x
         const dy = p.y - core.y
         const d = Math.hypot(dx, dy) || 1
-        const off = p.r * 1.25 + 14
-        const x = p.x + (dx / d) * off
-        const y = p.y + (dy / d) * off
+        const ax = dx / d
+        const ay = dy / d
+        // Sit just outside the lobe edge, anchored on the side facing away from the core.
+        const off = p.r * 1.2 + 8
+        let x = p.x + ax * off
+        const y = p.y + ay * off
+        const tx = -50 + 50 * Math.max(-1, Math.min(1, ax * 1.6))
+        const ty = -50 + 50 * Math.max(-1, Math.min(1, ay * 1.6))
         const el = labels[i]
+        // Keep the whole label inside the canvas.
+        const w = el.offsetWidth
+        const left = x + (tx / 100) * w
+        const shift = Math.min(0, m.layout.width - 8 - (left + w)) + Math.max(0, 8 - left)
+        x += shift
         el.style.left = '0'
         el.style.top = '0'
-        el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%)`
+        el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(${tx.toFixed(0)}%, ${ty.toFixed(0)}%)`
       }
       const cl = this.$refs.coreLabel as HTMLElement | undefined
       if (cl) {

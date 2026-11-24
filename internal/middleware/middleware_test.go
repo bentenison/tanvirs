@@ -130,7 +130,6 @@ func TestRecovery(t *testing.T) {
 
 func TestSecurityHeaders(t *testing.T) {
 	want := map[string]string{
-		"Content-Security-Policy":    ContentSecurityPolicy,
 		"X-Content-Type-Options":     "nosniff",
 		"Referrer-Policy":            "strict-origin-when-cross-origin",
 		"X-Frame-Options":            "DENY",
@@ -145,6 +144,14 @@ func TestSecurityHeaders(t *testing.T) {
 			if got := w.Header().Get(k); got != v {
 				t.Errorf("hsts=%v %s = %q, want %q", hsts, k, got, v)
 			}
+		}
+		wantCSP := ContentSecurityPolicy
+		if hsts {
+			// Upgrading subresources only makes sense when the site is HTTPS-only.
+			wantCSP += "; upgrade-insecure-requests"
+		}
+		if got := w.Header().Get("Content-Security-Policy"); got != wantCSP {
+			t.Errorf("hsts=%v CSP = %q, want %q", hsts, got, wantCSP)
 		}
 		got := w.Header().Get("Strict-Transport-Security")
 		if hsts && got != "max-age=63072000; includeSubDomains" {

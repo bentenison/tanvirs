@@ -8,7 +8,7 @@
  * the membrane is under tension, a breathing chlorophyll nucleus, and a
  * procedural dot grid that refracts through the body.
  */
-export const MAX_BLOBS = 32
+export const MAX_BLOBS = 48
 export const MAX_ORGANELLES = 8
 
 export const vertexSource = /* glsl */ `#version 300 es
@@ -110,7 +110,7 @@ void main() {
   float spec = pow(clamp(dot(reflect(-L, n), vec3(0.0, 0.0, 1.0)), 0.0, 1.0), 28.0);
 
   vec3 col = cBody;
-  col = mix(col, cRim, (1.0 - height) * 0.35);
+  col = mix(col, cRim, (1.0 - height) * 0.22);
   col += (cLight - cBody) * diff * 0.16;
   col += cLight * spec * 0.22;
 

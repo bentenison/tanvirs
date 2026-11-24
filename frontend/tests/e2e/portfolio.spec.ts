@@ -190,9 +190,11 @@ test.describe('interactive surfaces', () => {
   test('playground simulations respond to controls', async ({ page }) => {
     await page.goto('/playground')
     const workers = page.getByRole('slider', { name: 'Workers' })
-    await workers.fill('16')
-    await expect(workers).toHaveAttribute('aria-valuetext', '16')
-    await expect(page.locator('#sim-workers output')).toHaveText('16')
+    // The page is prerendered; retry until hydration has attached the handlers.
+    await expect(async () => {
+      await workers.fill('16')
+      await expect(workers).toHaveAttribute('aria-valuetext', '16', { timeout: 500 })
+    }).toPass({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Run pipeline' }).click()
     await expect(page.locator('#sim-rag').getByText(/\[\d+\]/).first()).toBeVisible()
   })

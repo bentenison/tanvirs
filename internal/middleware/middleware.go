@@ -20,10 +20,12 @@ import (
 // HeaderRequestID is the request and response header carrying the request ID.
 const HeaderRequestID = "X-Request-ID"
 
-// ContentSecurityPolicy is sent on every response.
+// ContentSecurityPolicy is sent on every response. When HTTPS-only mode
+// (HSTS) is enabled, "; upgrade-insecure-requests" is appended; it is left
+// off otherwise so plain-HTTP deployments (LAN, local testing) keep working.
 const ContentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
 	"img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; " +
-	"object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+	"object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
 type ctxKey struct{}
 
@@ -121,9 +123,13 @@ func Logger(log *slog.Logger) gin.HandlerFunc {
 // SecurityHeaders sets the security headers on every response. HSTS is sent
 // only when hsts is true (enable it only when served exclusively over HTTPS).
 func SecurityHeaders(hsts bool) gin.HandlerFunc {
+	csp := ContentSecurityPolicy
+	if hsts {
+		csp += "; upgrade-insecure-requests"
+	}
 	return func(c *gin.Context) {
 		h := c.Writer.Header()
-		h.Set("Content-Security-Policy", ContentSecurityPolicy)
+		h.Set("Content-Security-Policy", csp)
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("X-Frame-Options", "DENY")

@@ -214,3 +214,14 @@ Mockups use restrained perspective (maximum tilt of 6°), layered windows, and *
 2. Are you happy with **no GSAP and no Three.js**? It's permitted by the brief, and I think it's the stronger engineering story.
 3. Can the hero copy draft in section 3 stay, or would you like different wording?
 4. The playground has four simulations: worker pool, connection pool, cache and RAG. Swap any?
+
+---
+
+## Changes made during the build (2026-11-24)
+
+- **Hero layout:** the headline stays inside its own column and never overlaps the organism, so it is readable in both themes. In dark mode the organism is a graphite body with a lit rim, not a pale body.
+- **Organism proportions:** the core is smaller and the lobes sit further out on thinner necks, so it reads as one body with distinct lobes rather than a single flower shape.
+- **Mobile:** all eight lobes are kept (not merged into five), scaled to the screen. The organism owns the upper half of the screen and the top bar is hidden in favour of the bottom navigation.
+- **Frontend capability:** the spring-tuner demo was replaced by a UI-states demo (ready, loading, empty and error states, with radius and density tokens), which reflects Vue, Tailwind, shadcn-vue and UX design work.
+- **Content:** no em dashes anywhere in the site copy. The site never presents itself as one of the projects. TypeScript and WebAssembly are not listed as skills.
+- **Performance:** a single stylesheet (prevents layout shift on prerendered routes) and lazy hydration of below-the-fold sections. See PERFORMANCE.md.
