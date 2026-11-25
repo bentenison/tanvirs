@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/bentenison/portfolio/internal/contact"
 	"github.com/bentenison/portfolio/internal/middleware"
+	"github.com/bentenison/portfolio/internal/store"
 )
 
 // MaxContactBody is the maximum accepted contact request body in bytes.
@@ -22,14 +24,19 @@ const MaxContactBody = 16 << 10
 // MinElapsedMS is the minimum time a human plausibly needs to fill the form.
 const MinElapsedMS = 2500
 
-// Contact serves the contact API. A nil Mailer disables delivery.
+// MessageSaver stores contact submissions.
+type MessageSaver interface {
+	CreateMessage(ctx context.Context, m store.NewMessage) (int64, error)
+}
+
+// Contact serves the contact API. A nil Saver disables the form.
 type Contact struct {
-	Mailer  contact.Mailer
+	Saver   MessageSaver
 	Limiter *contact.Limiter
 	Logger  *slog.Logger
 }
 
-func (h *Contact) enabled() bool { return h.Mailer != nil }
+func (h *Contact) enabled() bool { return h.Saver != nil }
 
 // APIJSON writes a JSON API response with Cache-Control: no-store.
 func APIJSON(c *gin.Context, status int, body any) {
@@ -43,7 +50,7 @@ func (h *Contact) Status(c *gin.Context) {
 	APIJSON(c, http.StatusOK, gin.H{"enabled": h.enabled()})
 }
 
-// Submit validates and delivers a contact form submission.
+// Submit validates and stores a contact form submission.
 func (h *Contact) Submit(c *gin.Context) {
 	ctx := c.Request.Context()
 	rid := middleware.RequestIDFromContext(ctx)
@@ -100,17 +107,19 @@ func (h *Contact) Submit(c *gin.Context) {
 		return
 	}
 
-	err = h.Mailer.Send(ctx, contact.Message{
+	id, err := h.Saver.CreateMessage(ctx, store.NewMessage{
 		Name:      clean.Name,
 		Email:     clean.Email,
-		Body:      clean.Message,
+		Message:   clean.Message,
+		ClientIP:  c.ClientIP(),
+		UserAgent: c.GetHeader("User-Agent"),
 		RequestID: rid,
 	})
 	if err != nil {
-		log.ErrorContext(ctx, "contact delivery failed", "error", err)
-		APIJSON(c, http.StatusBadGateway, gin.H{"error": "delivery_failed"})
+		log.ErrorContext(ctx, "contact save failed", "error", err)
+		APIJSON(c, http.StatusServiceUnavailable, gin.H{"error": "save_failed"})
 		return
 	}
-	log.InfoContext(ctx, "contact delivered")
+	log.InfoContext(ctx, "contact saved", "message_id", id)
 	APIJSON(c, http.StatusOK, gin.H{"ok": true})
 }

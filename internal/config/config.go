@@ -7,7 +7,9 @@
 //	                           When unset, IP and PORT are used instead (the convention
 //	                           used by alwaysdata and similar hosts); when PORT is also
 //	                           unset the default is ":8080".
-//	IP, PORT                   Fallback host and port for the listen address.
+//	IP, PORT                   Listen address given by the host (alwaysdata sets both;
+//	                           IP may be IPv6, e.g. "::" or "fd00::4a16"). HOST is accepted
+//	                           in place of IP when it is an IP address.
 //	PORTFOLIO_BASE_URL         Public absolute http(s) URL of the site.
 //	                           Default "https://tanvirs.alwaysdata.net".
 //	PORTFOLIO_LOG_LEVEL        debug | info | warn | error. Default "info".
@@ -16,16 +18,17 @@
 //	                           are trusted when determining the client IP.
 //	                           Default "127.0.0.1,::1". Use "none" to trust no proxy.
 //	PORTFOLIO_HSTS             Boolean; send Strict-Transport-Security. Default false.
-//	SMTP_HOST                  SMTP server host name. Required to enable contact.
-//	SMTP_PORT                  SMTP server port. Default 587.
-//	SMTP_USERNAME              SMTP username; PLAIN auth is used only when set.
-//	SMTP_PASSWORD              SMTP password. Never logged.
-//	SMTP_FROM                  Envelope and header sender address. Required to enable contact.
-//	CONTACT_TO                 Recipient of contact messages. Required to enable contact.
-//	SMTP_TLS                   starttls | tls | none. Default "starttls".
+//	DATABASE_URL               PostgreSQL connection string, e.g.
+//	                           postgres://user:pass@host:5432/db?sslmode=require.
+//	                           Enables the contact form and the admin area. Never logged.
+//	ADMIN_USERNAME             Login name for the admin area. Default "admin".
+//	ADMIN_PASSWORD             Password for the admin area (at least 12 characters).
+//	                           Seeded into the database at startup; changing it here
+//	                           changes the login. Never logged.
+//	ADMIN_SESSION_HOURS        Admin session lifetime in hours. Default 12.
 //
-// The contact form is enabled only when SMTP_HOST, SMTP_FROM and CONTACT_TO
-// are all set.
+// Without DATABASE_URL the site still serves pages; the contact form reports
+// itself disabled and /admin is not available.
 package config
 
 import (
@@ -33,12 +36,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"net/mail"
 	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Default values applied when the corresponding variable is unset.
@@ -46,7 +49,9 @@ const (
 	DefaultAddr           = ":8080"
 	DefaultBaseURL        = "https://tanvirs.alwaysdata.net"
 	DefaultTrustedProxies = "127.0.0.1,::1"
-	DefaultSMTPPort       = 587
+	DefaultAdminUsername  = "admin"
+	DefaultSessionTTL     = 12 * time.Hour
+	MinAdminPasswordLen   = 12
 )
 
 // LogFormat selects the slog handler.
@@ -58,78 +63,73 @@ const (
 	LogText LogFormat = "text"
 )
 
-// TLSMode selects how the SMTP connection is secured.
-type TLSMode string
-
-// Supported SMTP TLS modes.
-const (
-	TLSStartTLS TLSMode = "starttls"
-	TLSImplicit TLSMode = "tls"
-	TLSNone     TLSMode = "none"
-)
-
 // Config is the complete, validated server configuration.
 type Config struct {
 	Addr           string
+	AddrSource     string // PORTFOLIO_ADDR, IP/PORT or default
 	BaseURL        string
 	LogLevel       slog.Level
 	LogFormat      LogFormat
 	TrustedProxies []string // nil means trust no proxy
 	HSTS           bool
-	SMTP           SMTP
+	Database       Database
+	Admin          Admin
 }
 
-// SMTP holds contact delivery settings.
-type SMTP struct {
-	Host     string
-	Port     int
-	Username string
-	Password string
-	From     string
-	To       string
-	TLS      TLSMode
+// Database holds the PostgreSQL connection settings.
+type Database struct {
+	URL string
 }
 
-// Enabled reports whether enough settings are present to deliver contact
-// messages.
-func (s SMTP) Enabled() bool {
-	return s.Host != "" && s.From != "" && s.To != ""
+// Enabled reports whether a database is configured.
+func (d Database) Enabled() bool { return d.URL != "" }
+
+// LogValue implements slog.LogValuer; only the host and database name are logged.
+func (d Database) LogValue() slog.Value {
+	if !d.Enabled() {
+		return slog.GroupValue(slog.Bool("enabled", false))
+	}
+	host, name := "", ""
+	if u, err := url.Parse(d.URL); err == nil {
+		host, name = u.Host, strings.TrimPrefix(u.Path, "/")
+	}
+	return slog.GroupValue(slog.Bool("enabled", true), slog.String("host", host), slog.String("name", name))
+}
+
+// String implements fmt.Stringer without the credentials.
+func (d Database) String() string { return d.LogValue().String() }
+
+// Admin holds the seeded admin login.
+type Admin struct {
+	Username   string
+	Password   string
+	SessionTTL time.Duration
 }
 
 // LogValue implements slog.LogValuer so the password is never logged.
-func (s SMTP) LogValue() slog.Value {
-	pw := ""
-	if s.Password != "" {
-		pw = "[REDACTED]"
-	}
+func (a Admin) LogValue() slog.Value {
 	return slog.GroupValue(
-		slog.Bool("enabled", s.Enabled()),
-		slog.String("host", s.Host),
-		slog.Int("port", s.Port),
-		slog.String("username", s.Username),
-		slog.String("password", pw),
-		slog.String("from", s.From),
-		slog.String("to", s.To),
-		slog.String("tls", string(s.TLS)),
+		slog.String("username", a.Username),
+		slog.Bool("password_set", a.Password != ""),
+		slog.String("session_ttl", a.SessionTTL.String()),
 	)
 }
 
-// String implements fmt.Stringer with the password redacted, so accidental
-// %v formatting is also safe.
-func (s SMTP) String() string {
-	return s.LogValue().String()
-}
+// String implements fmt.Stringer with the password redacted.
+func (a Admin) String() string { return a.LogValue().String() }
 
 // LogValue implements slog.LogValuer.
 func (c Config) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("addr", c.Addr),
+		slog.String("addr_source", c.AddrSource),
 		slog.String("base_url", c.BaseURL),
 		slog.String("log_level", c.LogLevel.String()),
 		slog.String("log_format", string(c.LogFormat)),
 		slog.Any("trusted_proxies", c.TrustedProxies),
 		slog.Bool("hsts", c.HSTS),
-		slog.Any("smtp", c.SMTP),
+		slog.Any("database", c.Database),
+		slog.Any("admin", c.Admin),
 	)
 }
 
@@ -149,7 +149,7 @@ func Load(getenv func(string) string) (Config, error) {
 		BaseURL:   DefaultBaseURL,
 		LogLevel:  slog.LevelInfo,
 		LogFormat: LogJSON,
-		SMTP:      SMTP{Port: DefaultSMTPPort, TLS: TLSStartTLS},
+		Admin:     Admin{Username: DefaultAdminUsername, SessionTTL: DefaultSessionTTL},
 	}
 
 	// Listen address.
@@ -160,7 +160,8 @@ func Load(getenv func(string) string) (Config, error) {
 			fail("PORTFOLIO_ADDR %q: %v", v, err)
 		}
 		cfg.Addr = v
-	} else if ip, port := get("IP"), get("PORT"); ip != "" || port != "" {
+		cfg.AddrSource = "PORTFOLIO_ADDR"
+	} else if ip, port := hostIP(get), get("PORT"); ip != "" || port != "" {
 		if port == "" {
 			port = "8080"
 		}
@@ -173,8 +174,10 @@ func Load(getenv func(string) string) (Config, error) {
 			}
 		}
 		cfg.Addr = net.JoinHostPort(ip, port)
+		cfg.AddrSource = "IP/PORT"
 	} else {
 		cfg.Addr = DefaultAddr
+		cfg.AddrSource = "default"
 	}
 
 	if v := get("PORTFOLIO_BASE_URL"); v != "" {
@@ -220,7 +223,7 @@ func Load(getenv func(string) string) (Config, error) {
 				continue
 			}
 			if !validProxy(p) {
-				fail("PORTFOLIO_TRUSTED_PROXIES: %q is not an IP or CIDR", p)
+				fail("PORTFOLIO_TRUSTED_PROXIES: %q is not an IP address or CIDR", p)
 				continue
 			}
 			cfg.TrustedProxies = append(cfg.TrustedProxies, p)
@@ -235,43 +238,53 @@ func Load(getenv func(string) string) (Config, error) {
 		cfg.HSTS = b
 	}
 
-	// SMTP.
-	cfg.SMTP.Host = get("SMTP_HOST")
-	cfg.SMTP.Username = get("SMTP_USERNAME")
-	cfg.SMTP.Password = getenv("SMTP_PASSWORD") // not trimmed: may legitimately contain spaces
-	if v := get("SMTP_PORT"); v != "" {
-		p, err := parsePort(v)
-		if err != nil {
-			fail("SMTP_PORT %q: %v", v, err)
+	// Database.
+	if v := get("DATABASE_URL"); v != "" {
+		u, err := url.Parse(v)
+		if err != nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Host == "" {
+			// Never echo the value: it contains the password.
+			fail("DATABASE_URL: must be a postgres:// URL with a host")
 		}
-		cfg.SMTP.Port = p
+		cfg.Database.URL = v
 	}
-	if v := get("SMTP_TLS"); v != "" {
-		switch m := TLSMode(strings.ToLower(v)); m {
-		case TLSStartTLS, TLSImplicit, TLSNone:
-			cfg.SMTP.TLS = m
-		default:
-			fail("SMTP_TLS %q: want starttls, tls or none", v)
+
+	// Admin login.
+	if v := get("ADMIN_USERNAME"); v != "" {
+		if len(v) > 64 || strings.ContainsAny(v, " \t\r\n") {
+			fail("ADMIN_USERNAME: at most 64 characters and no spaces")
 		}
+		cfg.Admin.Username = v
 	}
-	for _, kv := range []struct {
-		key string
-		dst *string
-	}{{"SMTP_FROM", &cfg.SMTP.From}, {"CONTACT_TO", &cfg.SMTP.To}} {
-		v := get(kv.key)
-		if v == "" {
-			continue
+	cfg.Admin.Password = getenv("ADMIN_PASSWORD") // not trimmed: spaces may be intentional
+	if cfg.Admin.Password != "" && len([]rune(cfg.Admin.Password)) < MinAdminPasswordLen {
+		fail("ADMIN_PASSWORD: must be at least %d characters", MinAdminPasswordLen)
+	}
+	if v := get("ADMIN_SESSION_HOURS"); v != "" {
+		h, err := strconv.Atoi(v)
+		if err != nil || h < 1 || h > 24*30 {
+			fail("ADMIN_SESSION_HOURS %q: want a whole number of hours between 1 and 720", v)
 		}
-		if _, err := mail.ParseAddress(v); err != nil || strings.ContainsAny(v, "\r\n") {
-			fail("%s: not a valid email address", kv.key)
-		}
-		*kv.dst = v
+		cfg.Admin.SessionTTL = time.Duration(h) * time.Hour
 	}
 
 	if len(errs) > 0 {
 		return Config{}, errors.Join(errs...)
 	}
 	return cfg, nil
+}
+
+// hostIP returns IP, or HOST when IP is unset and HOST is an IP address
+// (alwaysdata documents both names). A HOST that is a hostname is ignored.
+func hostIP(get func(string) string) string {
+	if ip := get("IP"); ip != "" {
+		return ip
+	}
+	if h := get("HOST"); h != "" {
+		if _, err := netip.ParseAddr(h); err == nil {
+			return h
+		}
+	}
+	return ""
 }
 
 func parsePort(s string) (int, error) {

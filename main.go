@@ -10,13 +10,16 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/bentenison/portfolio/internal/admin"
 	"github.com/bentenison/portfolio/internal/config"
 	"github.com/bentenison/portfolio/internal/contact"
 	"github.com/bentenison/portfolio/internal/handlers"
 	"github.com/bentenison/portfolio/internal/server"
+	"github.com/bentenison/portfolio/internal/store"
 	"github.com/bentenison/portfolio/internal/web"
 )
 
@@ -54,26 +57,30 @@ func run() error {
 	defer stopJanitor()
 	go limiter.Run(janitorCtx, time.Minute)
 
-	var mailer contact.Mailer
-	if cfg.SMTP.Enabled() {
-		m, err := contact.NewSMTPMailer(cfg.SMTP)
-		if err != nil {
-			return err
-		}
-		mailer = m
-	} else {
-		log.Info("contact form disabled: SMTP_HOST, SMTP_FROM and CONTACT_TO are required")
-	}
-
-	health := handlers.NewHealth()
-	srv, err := server.New(server.Options{
+	opts := server.Options{
 		Config:  cfg,
 		Logger:  log,
 		Static:  dist,
-		Health:  health,
-		Mailer:  mailer,
+		Health:  handlers.NewHealth(),
 		Limiter: limiter,
-	})
+	}
+	if db := openStore(ctx, cfg, log); db != nil {
+		defer db.Close()
+		adm, err := admin.New(admin.Options{
+			Store:      db,
+			Logger:     log,
+			SessionTTL: cfg.Admin.SessionTTL,
+			Secure:     strings.HasPrefix(cfg.BaseURL, "https://"),
+		})
+		if err != nil {
+			return err
+		}
+		go adm.Limiter().Run(janitorCtx, time.Minute)
+		go pruneSessions(janitorCtx, db, log)
+		opts.Saver, opts.Admin = db, adm
+	}
+	health := opts.Health
+	srv, err := server.New(opts)
 	if err != nil {
 		return err
 	}
@@ -82,7 +89,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	log.Info("listening", "addr", ln.Addr().String())
+	log.Info("listening", "addr", ln.Addr().String(), "source", cfg.AddrSource)
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
@@ -114,4 +121,53 @@ func newLogger(cfg config.Config) *slog.Logger {
 		return slog.New(slog.NewTextHandler(os.Stdout, opts))
 	}
 	return slog.New(slog.NewJSONHandler(os.Stdout, opts))
+}
+
+// openStore connects, migrates and seeds the admin login. Any failure is
+// logged and the site keeps serving pages with the contact form and /admin
+// switched off, so a database outage never takes the portfolio down.
+func openStore(ctx context.Context, cfg config.Config, log *slog.Logger) *store.Store {
+	if !cfg.Database.Enabled() {
+		log.Info("database not configured: contact form and /admin are disabled (set DATABASE_URL)")
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	db, err := store.Open(ctx, cfg.Database.URL)
+	if err != nil {
+		log.Error("database unavailable: contact form and /admin are disabled", "error", err)
+		return nil
+	}
+	if err := db.Migrate(ctx); err != nil {
+		log.Error("database migration failed: contact form and /admin are disabled", "error", err)
+		db.Close()
+		return nil
+	}
+	if cfg.Admin.Password == "" {
+		log.Warn("ADMIN_PASSWORD not set: no admin login was seeded; existing logins still work")
+		return db
+	}
+	created, err := db.SeedAdmin(ctx, cfg.Admin.Username, cfg.Admin.Password)
+	if err != nil {
+		log.Error("seeding the admin login failed", "error", err)
+	} else if created {
+		log.Info("admin login created", "username", cfg.Admin.Username)
+	}
+	return db
+}
+
+// pruneSessions deletes expired admin sessions every hour.
+func pruneSessions(ctx context.Context, db *store.Store, log *slog.Logger) {
+	t := time.NewTicker(time.Hour)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if err := db.PruneSessions(ctx); err != nil {
+				log.Warn("pruning admin sessions failed", "error", err)
+			}
+		}
+	}
 }

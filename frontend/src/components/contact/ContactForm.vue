@@ -88,7 +88,7 @@ type Field = 'name' | 'email' | 'message'
 /**
  * Optional contact form. Errors appear on blur and on submit, are linked
  * with aria-describedby, and focus moves to the first invalid field.
- * Success is shown only after the server confirms delivery.
+ * Success is shown only after the server confirms the message was saved.
  */
 export default defineComponent({
   name: 'ContactForm',
@@ -127,7 +127,7 @@ export default defineComponent({
         case 'sending':
           return 'Sending…'
         case 'sent':
-          return 'Thank you. Your message was delivered. I’ll reply by email.'
+          return 'Thank you. Your message has been received, and I’ll reply by email.'
         case 'error':
           return this.errorMessage()
         default:
@@ -153,8 +153,8 @@ export default defineComponent({
           return 'That was quick. Please wait a moment and send again.'
         case 'rate_limited':
           return `Too many messages in a short time. Please try again later.${mail}`
-        case 'delivery_failed':
-          return `The message could not be delivered right now.${mail}`
+        case 'save_failed':
+          return `Your message couldn’t be saved just now. Please try again in a minute.${mail}`
         case 'disabled':
           return `The form is unavailable at the moment.${mail}`
         case 'network':

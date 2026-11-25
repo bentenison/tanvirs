@@ -33,11 +33,11 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.HSTS {
 		t.Error("HSTS should default to false")
 	}
-	if cfg.SMTP.Port != 587 || cfg.SMTP.TLS != TLSStartTLS {
-		t.Errorf("SMTP defaults = %+v", cfg.SMTP)
+	if cfg.Database.Enabled() {
+		t.Error("database should be disabled by default")
 	}
-	if cfg.SMTP.Enabled() {
-		t.Error("contact should be disabled by default")
+	if cfg.Admin.Username != "admin" || cfg.Admin.SessionTTL != DefaultSessionTTL || cfg.Admin.Password != "" {
+		t.Errorf("admin defaults = %+v", cfg.Admin)
 	}
 }
 
@@ -53,6 +53,10 @@ func TestLoadAddr(t *testing.T) {
 		{"port only", map[string]string{"PORT": "3000"}, ":3000"},
 		{"ip only", map[string]string{"IP": "10.0.0.5"}, "10.0.0.5:8080"},
 		{"default", nil, ":8080"},
+		{"alwaysdata ipv6", map[string]string{"IP": "fd00::4a16", "PORT": "8100"}, "[fd00::4a16]:8100"},
+		{"HOST as IP", map[string]string{"HOST": "fd00::4a16", "PORT": "8100"}, "[fd00::4a16]:8100"},
+		{"IP wins over HOST", map[string]string{"IP": "::", "HOST": "10.0.0.9", "PORT": "8100"}, "[::]:8100"},
+		{"hostname HOST ignored", map[string]string{"HOST": "my-laptop", "PORT": "8100"}, ":8100"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -62,6 +66,9 @@ func TestLoadAddr(t *testing.T) {
 			}
 			if cfg.Addr != tt.want {
 				t.Errorf("Addr = %q, want %q", cfg.Addr, tt.want)
+			}
+			if cfg.AddrSource == "" {
+				t.Error("AddrSource not set")
 			}
 		})
 	}
@@ -74,11 +81,10 @@ func TestLoadValues(t *testing.T) {
 		"PORTFOLIO_LOG_FORMAT":      "text",
 		"PORTFOLIO_TRUSTED_PROXIES": " 10.0.0.0/8 , 192.168.1.1 ",
 		"PORTFOLIO_HSTS":            "true",
-		"SMTP_HOST":                 "smtp.example.com",
-		"SMTP_PORT":                 "465",
-		"SMTP_TLS":                  "tls",
-		"SMTP_FROM":                 "site@example.com",
-		"CONTACT_TO":                "owner@example.com",
+		"DATABASE_URL":              "postgres://u:p@db.example.com:5432/portfolio?sslmode=require",
+		"ADMIN_USERNAME":            "tanvir",
+		"ADMIN_PASSWORD":            "a-long-enough-password",
+		"ADMIN_SESSION_HOURS":       "8",
 	}))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -92,8 +98,11 @@ func TestLoadValues(t *testing.T) {
 	if want := []string{"10.0.0.0/8", "192.168.1.1"}; !reflect.DeepEqual(cfg.TrustedProxies, want) {
 		t.Errorf("TrustedProxies = %v", cfg.TrustedProxies)
 	}
-	if !cfg.SMTP.Enabled() || cfg.SMTP.Port != 465 || cfg.SMTP.TLS != TLSImplicit {
-		t.Errorf("SMTP = %+v", cfg.SMTP)
+	if !cfg.Database.Enabled() {
+		t.Error("database should be enabled")
+	}
+	if cfg.Admin.Username != "tanvir" || cfg.Admin.Password != "a-long-enough-password" || cfg.Admin.SessionTTL.Hours() != 8 {
+		t.Errorf("admin = %+v", cfg.Admin)
 	}
 }
 
@@ -122,10 +131,12 @@ func TestLoadInvalid(t *testing.T) {
 		{"PORTFOLIO_LOG_FORMAT", "xml"},
 		{"PORTFOLIO_TRUSTED_PROXIES", "127.0.0.1,banana"},
 		{"PORTFOLIO_HSTS", "maybe"},
-		{"SMTP_PORT", "-1"},
-		{"SMTP_TLS", "ssl3"},
-		{"SMTP_FROM", "not an address"},
-		{"CONTACT_TO", "a@b.com\r\nBcc: x@y.com"},
+		{"DATABASE_URL", "mysql://u:p@h/db"},
+		{"DATABASE_URL", "postgres:///nohost"},
+		{"ADMIN_USERNAME", "has space"},
+		{"ADMIN_PASSWORD", "short"},
+		{"ADMIN_SESSION_HOURS", "0"},
+		{"ADMIN_SESSION_HOURS", "lots"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.key+"="+tt.value, func(t *testing.T) {
@@ -140,32 +151,15 @@ func TestLoadInvalid(t *testing.T) {
 	}
 }
 
-func TestEnabledRequiresAll(t *testing.T) {
-	for _, s := range []SMTP{
-		{Host: "h", From: "f@x.com"},
-		{Host: "h", To: "t@x.com"},
-		{From: "f@x.com", To: "t@x.com"},
-	} {
-		if s.Enabled() {
-			t.Errorf("%+v should not be enabled", s)
-		}
-	}
-}
-
-func TestPasswordRedacted(t *testing.T) {
-	const secret = "hunter2-super-secret"
+func TestSecretsRedacted(t *testing.T) {
+	const dbSecret = "db-pass-hunter2"
+	const adminSecret = "admin-pass-hunter2"
 	cfg, err := Load(envFunc(map[string]string{
-		"SMTP_HOST":     "smtp.example.com",
-		"SMTP_USERNAME": "user",
-		"SMTP_PASSWORD": secret,
-		"SMTP_FROM":     "site@example.com",
-		"CONTACT_TO":    "owner@example.com",
+		"DATABASE_URL":   "postgres://portfolio:" + dbSecret + "@db.example.com:5432/portfolio",
+		"ADMIN_PASSWORD": adminSecret,
 	}))
 	if err != nil {
 		t.Fatal(err)
-	}
-	if cfg.SMTP.Password != secret {
-		t.Fatal("password not loaded")
 	}
 	for _, newHandler := range []func(*bytes.Buffer) slog.Handler{
 		func(b *bytes.Buffer) slog.Handler { return slog.NewJSONHandler(b, nil) },
@@ -174,16 +168,22 @@ func TestPasswordRedacted(t *testing.T) {
 		var buf bytes.Buffer
 		log := slog.New(newHandler(&buf))
 		log.Info("config", "config", cfg)
-		log.Info("smtp", "smtp", cfg.SMTP)
 		out := buf.String()
-		if strings.Contains(out, secret) {
-			t.Fatalf("password leaked: %s", out)
+		if strings.Contains(out, dbSecret) || strings.Contains(out, adminSecret) {
+			t.Fatalf("secret leaked: %s", out)
 		}
-		if !strings.Contains(out, "[REDACTED]") {
-			t.Errorf("expected redaction marker in %s", out)
+		if !strings.Contains(out, "db.example.com") {
+			t.Errorf("expected database host in %s", out)
 		}
 	}
-	if s := fmt.Sprintf("%v %s", cfg.SMTP, cfg.SMTP); strings.Contains(s, secret) {
-		t.Fatalf("password leaked via fmt: %s", s)
+	if s := fmt.Sprintf("%v %s %v", cfg.Database, cfg.Admin, cfg); strings.Contains(s, dbSecret) || strings.Contains(s, adminSecret) {
+		t.Fatalf("secret leaked via fmt: %s", s)
+	}
+}
+
+func TestInvalidDatabaseURLNotEchoed(t *testing.T) {
+	_, err := Load(envFunc(map[string]string{"DATABASE_URL": "mysql://u:topsecret@h/db"}))
+	if err == nil || strings.Contains(err.Error(), "topsecret") {
+		t.Fatalf("err = %v", err)
 	}
 }

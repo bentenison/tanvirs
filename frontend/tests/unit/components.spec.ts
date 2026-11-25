@@ -139,7 +139,7 @@ describe('ContactForm', () => {
 
   it('does not claim success when delivery fails', async () => {
     vi.useFakeTimers()
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'delivery_failed' }), { status: 502 })))
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'save_failed' }), { status: 503 })))
     const w = mount(ContactForm, { props: { email: 'me@example.com' } })
     await w.find('#cf-name').setValue('Asha')
     await w.find('#cf-email').setValue('asha@example.com')
@@ -149,7 +149,7 @@ describe('ContactForm', () => {
     await done
     await flushPromises()
     const status = w.find('[role="status"]').text()
-    expect(status).toMatch(/could not be delivered/i)
+    expect(status).toMatch(/couldn’t be saved/i)
     expect(status).toContain('me@example.com')
     expect(status).not.toMatch(/thank you/i)
     vi.useRealTimers()

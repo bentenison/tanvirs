@@ -41,9 +41,9 @@ describe('submitContact', () => {
     expect(await submitContact(ok, 4000)).toEqual({ ok: true })
   })
 
-  it('never reports success for a delivery failure', async () => {
-    respond(502, { error: 'delivery_failed' })
-    expect(await submitContact(ok, 4000)).toEqual({ ok: false, kind: 'delivery_failed' })
+  it('never reports success when saving fails', async () => {
+    respond(503, { error: 'save_failed' })
+    expect(await submitContact(ok, 4000)).toEqual({ ok: false, kind: 'save_failed' })
   })
 
   it('maps validation, rate limiting and network errors', async () => {

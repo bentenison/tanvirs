@@ -1,0 +1,18 @@
+{{define "login.html"}}{{template "top" .}}
+<style>.login{max-width:360px;margin:48px auto;padding:28px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}.login .field{margin-bottom:16px}.login .btn{width:100%;justify-content:center;min-height:44px}</style>
+<section class="login" aria-labelledby="login-title">
+<h1 id="login-title">Sign in</h1>
+{{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+<form method="post" action="/admin/login">
+<div class="field">
+<label for="username">Username</label>
+<input id="username" name="username" autocomplete="username" required value="{{.Username}}" autofocus>
+</div>
+<div class="field">
+<label for="password">Password</label>
+<input id="password" name="password" type="password" autocomplete="current-password" required>
+</div>
+<button class="btn primary" type="submit">Sign in</button>
+</form>
+</section>
+{{template "bottom" .}}{{end}}

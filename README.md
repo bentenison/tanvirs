@@ -2,7 +2,7 @@
 
 A personal portfolio served by a single Go binary. The Vue 3 frontend is prerendered at build time, precompressed, and embedded with `go:embed`. After compiling, nothing else is needed at runtime: no Node.js, no database, no CDN.
 
-- **Backend:** Go 1.26, Gin, `log/slog`, graceful shutdown, security headers, request IDs, optional SMTP contact form.
+- **Backend:** Go 1.26, Gin, `log/slog`, PostgreSQL (pgx), graceful shutdown, security headers, request IDs, a contact inbox with an admin page.
 - **Frontend:** Vue 3 (Options API), Vite, TypeScript, Tailwind CSS v4, Reka UI primitives, a small custom spring engine, raw WebGL2 for the hero organism (with Canvas2D and SVG fallbacks).
 - **Docs:** [DESIGN.md](DESIGN.md) (creative direction), [PERFORMANCE.md](PERFORMANCE.md) (measured results), [LICENSES.md](LICENSES.md) (dependencies and fonts).
 
@@ -14,7 +14,9 @@ internal/config         environment configuration
 internal/server         Gin engine and http.Server
 internal/middleware     request ID, logging, recovery, security headers, body limit
 internal/handlers       static/SPA serving, health, contact API
-internal/contact        validation, rate limiting, SMTP mailer
+internal/contact        validation and rate limiting
+internal/store          PostgreSQL: contact messages, admin login and sessions, migrations
+internal/admin          server-rendered /admin pages
 internal/web            go:embed of the built frontend (internal/web/dist)
 frontend/               Vue app
   src/config/           all content: profile, projects, technologies, navigation, site
@@ -93,23 +95,25 @@ go test -race ./...
 | `PORTFOLIO_LOG_FORMAT` | `json` | `json` or `text` |
 | `PORTFOLIO_TRUSTED_PROXIES` | `127.0.0.1,::1` | IPs/CIDRs allowed to set `X-Forwarded-For`; `none` to trust nobody |
 | `PORTFOLIO_HSTS` | `false` | Send HSTS and `upgrade-insecure-requests`. Enable only when the site is HTTPS-only |
-| `SMTP_HOST`, `SMTP_PORT` | `587` | Contact form delivery |
-| `SMTP_USERNAME`, `SMTP_PASSWORD` | | PLAIN auth, used only if a username is set; never logged |
-| `SMTP_FROM`, `CONTACT_TO` | | Sender and recipient. Both required, together with `SMTP_HOST`, to enable the form |
-| `SMTP_TLS` | `starttls` | `starttls`, `tls` (implicit, port 465) or `none` |
+| `DATABASE_URL` | | PostgreSQL connection string. Enables the contact form and `/admin`; never logged |
+| `ADMIN_USERNAME` | `admin` | Login for `/admin` |
+| `ADMIN_PASSWORD` | | Admin password (12+ characters), seeded at startup as a bcrypt hash; changing it signs out all sessions |
+| `ADMIN_SESSION_HOURS` | `12` | Admin session lifetime |
 
-If SMTP is not configured, the contact section shows the email address instead of a form. The form never shows success unless the server confirms delivery. A Gmail account works with an app password: `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_TLS=starttls`.
+Contact form submissions are stored in PostgreSQL and managed at `/admin`, which provides an inbox, statuses, notes, reply-by-email links and CSV export. Without `DATABASE_URL` the site still works; the form shows a GitHub link instead. Tables are created by embedded migrations on startup.
 
-Endpoints: `GET /healthz`, `GET /readyz` (returns 503 while shutting down), `GET /api/contact` (returns whether the form is enabled), `POST /api/contact`.
+Endpoints: `GET /healthz`, `GET /readyz` (returns 503 while shutting down), `GET /api/contact` (returns whether the form is enabled), `POST /api/contact`, and the server-rendered `/admin` pages.
 
 ## Deploying
 
 ### alwaysdata
 
-1. Build `bin/portfolio-linux-amd64` and upload it to your account (for example to `~/portfolio/`), then run `chmod +x`.
-2. In the admin panel, add a **Site** of type **User program** with the command `~/portfolio/portfolio-linux-amd64`. alwaysdata provides `IP` and `PORT`, which the server picks up automatically.
-3. Add environment variables in the site settings (`PORTFOLIO_HSTS=true` once HTTPS is forced, plus SMTP values if you want the form).
-4. Enable "Force HTTPS" on the site. alwaysdata terminates TLS and proxies to the program.
+Everything for `tanvirs.alwaysdata.net` is scripted in [deploy/alwaysdata/](deploy/alwaysdata/README.md): site setup, one-command deploys with rollback, and the PostgreSQL database behind the contact inbox.
+
+```sh
+bash deploy/alwaysdata/setup-site.sh    # once
+bash deploy/alwaysdata/deploy.sh        # every release
+```
 
 ### Behind a reverse proxy (nginx / Caddy)
 
@@ -179,6 +183,7 @@ node scripts/measure.mjs http://127.0.0.1:18080       # lab performance numbers
 
 cd ..
 go vet ./... && go test ./...
+TEST_DATABASE_URL="postgres://user:pass@localhost:5432/portfolio_test?sslmode=disable" go test ./internal/store   # PostgreSQL tests
 ```
 
 `npm run test:e2e` starts `go run .` on port 18080 if nothing is already listening there, so build the frontend into `internal/web/dist` first (the build script does this). Install the browser once with `npx playwright install chromium`.

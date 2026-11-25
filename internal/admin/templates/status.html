@@ -1,0 +1,11 @@
+{{define "notfound.html"}}{{template "top" .}}
+<h1>Not found</h1>
+<p class="muted">That message doesn't exist. It may have been deleted.</p>
+<p><a class="btn" href="/admin">Back to messages</a></p>
+{{template "bottom" .}}{{end}}
+
+{{define "error.html"}}{{template "top" .}}
+<h1>Something went wrong</h1>
+<p class="muted">The database didn't respond as expected. Try again in a moment; details are in the server log.</p>
+<p><a class="btn" href="/admin">Back to messages</a></p>
+{{template "bottom" .}}{{end}}

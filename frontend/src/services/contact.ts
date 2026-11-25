@@ -65,7 +65,7 @@ export const errorText: Record<'name' | 'email' | 'message', Record<FieldError, 
 export type SubmitResult =
   | { ok: true }
   | { ok: false; kind: 'invalid'; fields: FieldErrors }
-  | { ok: false; kind: 'too_fast' | 'rate_limited' | 'disabled' | 'delivery_failed' | 'network' | 'unknown'; retryAfter?: number }
+  | { ok: false; kind: 'too_fast' | 'rate_limited' | 'disabled' | 'save_failed' | 'network' | 'unknown'; retryAfter?: number }
 
 export async function contactEnabled(signal?: AbortSignal): Promise<boolean> {
   try {
@@ -111,8 +111,8 @@ export async function submitContact(input: ContactInput, elapsedMs: number): Pro
       return { ok: false, kind: 'rate_limited', retryAfter: Number(res.headers.get('Retry-After')) || undefined }
     case 'contact_disabled':
       return { ok: false, kind: 'disabled' }
-    case 'delivery_failed':
-      return { ok: false, kind: 'delivery_failed' }
+    case 'save_failed':
+      return { ok: false, kind: 'save_failed' }
     default:
       return { ok: false, kind: 'unknown' }
   }

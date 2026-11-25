@@ -1,0 +1,53 @@
+{{define "inbox.html"}}{{template "top" .}}
+<style>
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 16px;padding:0;list-style:none}
+.tabs a{display:inline-flex;gap:8px;align-items:center;min-height:36px;padding:0 12px;border:1px solid var(--border);border-radius:999px;text-decoration:none;font-size:14px;background:var(--surface)}
+.tabs a[aria-current=page]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.tabs .n{font-variant-numeric:tabular-nums;opacity:.75}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}
+.tools form{display:flex;gap:8px;flex:1;min-width:240px}
+.list{list-style:none;margin:0;padding:0;border:1px solid var(--border);border-radius:12px;background:var(--surface);overflow:hidden}
+.list li+li{border-top:1px solid var(--border)}
+.row{display:grid;grid-template-columns:90px minmax(0,1fr) auto;gap:6px 16px;padding:14px 16px;text-decoration:none}
+.row:hover{background:var(--sunken)}
+.row .who{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .who.unread::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:8px;vertical-align:middle}
+.row .text{grid-column:2/4;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .time{color:var(--muted);font-size:13px;white-space:nowrap}
+.empty{padding:40px 16px;text-align:center;color:var(--muted)}
+.pager{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:16px}
+@media (max-width:600px){.row{grid-template-columns:minmax(0,1fr) auto}.row .badge{grid-row:2}.row .text{grid-column:1/3}}
+</style>
+<h1>Messages</h1>
+{{with .Notice}}<p class="notice" role="status">{{.}}</p>{{end}}
+<nav aria-label="Filter by status">
+<ul class="tabs">
+{{range .Tabs}}<li><a href="/admin{{if .Key}}?status={{.Key}}{{end}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}} <span class="n">{{.Count}}</span></a></li>{{end}}
+</ul>
+</nav>
+<div class="tools">
+<form method="get" action="/admin" role="search">
+{{if .Status}}<input type="hidden" name="status" value="{{.Status}}">{{end}}
+<label for="q" class="sr-only">Search name, email or message</label>
+<input id="q" name="q" type="search" value="{{.Query}}" placeholder="Search name, email or message">
+<button class="btn" type="submit">Search</button>
+</form>
+<a class="btn" href="/admin/export.csv">Export CSV</a>
+</div>
+{{if .Messages}}
+<ul class="list">
+{{range .Messages}}<li><a class="row" href="/admin/messages/{{.ID}}">
+<span><span class="badge {{.Status}}">{{label .Status}}</span></span>
+<span class="who{{if eq .Status "new"}} unread{{end}}">{{.Name}} <span class="muted" style="font-weight:400">· {{.Email}}</span></span>
+<span class="time" title="{{when .CreatedAt}}">{{ago .CreatedAt}}</span>
+<span class="text">{{excerpt .Message 140}}</span>
+</a></li>{{end}}
+</ul>
+<div class="pager">
+<span class="muted">{{.Total}} message{{if ne .Total 1}}s{{end}}{{if gt .Pages 1}} · page {{.Page}} of {{.Pages}}{{end}}</span>
+<span>{{with .PrevURL}}<a class="btn" href="{{.}}">Newer</a>{{end}} {{with .NextURL}}<a class="btn" href="{{.}}">Older</a>{{end}}</span>
+</div>
+{{else}}
+<div class="list"><p class="empty">{{if .Query}}No messages match "{{.Query}}".{{else}}Nothing here yet. New contact form messages will appear here.{{end}}</p></div>
+{{end}}
+{{template "bottom" .}}{{end}}

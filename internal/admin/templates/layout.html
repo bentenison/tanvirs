@@ -1,0 +1,59 @@
+{{define "top"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{.Title}} · Admin</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+:root{--bg:#f2efe7;--surface:#fff;--sunken:#ebe7dd;--text:#17160f;--muted:#5d5a50;--border:#dad5c8;--accent:#3d6a00;--accent-fill:#b8e62e;--danger:#b3261e;--danger-soft:#fbe9e7;--ok:#2f7d4a;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#121311;--surface:#1a1c19;--sunken:#232622;--text:#eceae2;--muted:#a3a196;--border:#30332e;--accent:#c4f03c;--accent-fill:#c4f03c;--danger:#ff8a80;--danger-soft:#3a211b;--ok:#6fd08c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:inherit}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+header.bar{border-bottom:1px solid var(--border);background:var(--surface)}
+header.bar .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px}
+.brand{font-weight:600;text-decoration:none}
+.brand span{color:var(--muted);font-weight:400}
+main{padding:28px 0 64px}
+h1{font-size:26px;margin:0 0 18px;letter-spacing:-.01em}
+.btn{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit;font-size:14px;text-decoration:none;cursor:pointer}
+.btn:hover{border-color:var(--text)}
+.btn.primary{background:var(--text);color:var(--bg);border-color:var(--text)}
+.btn.danger{color:var(--danger);border-color:var(--danger)}
+.btn[aria-pressed=true]{background:var(--accent-fill);border-color:var(--accent-fill);color:#121311}
+:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+input,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}
+textarea{min-height:110px;resize:vertical}
+label{display:block;font-size:13px;font-weight:600;margin:0 0 6px}
+.notice{padding:10px 14px;border-radius:8px;background:var(--sunken);margin:0 0 18px}
+.error{padding:10px 14px;border-radius:8px;background:var(--danger-soft);color:var(--danger);margin:0 0 16px}
+.muted{color:var(--muted)}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--border);white-space:nowrap}
+.badge.new{background:var(--accent-fill);border-color:var(--accent-fill);color:#121311}
+.badge.replied{color:var(--ok);border-color:var(--ok)}
+.badge.archived{color:var(--muted)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+</style>
+</head>
+<body>
+<header class="bar"><div class="wrap">
+<a class="brand" href="/admin">Portfolio <span>admin</span></a>
+{{if .Session}}{{with .Session}}{{if .Admin.ID}}
+<form method="post" action="/admin/logout">
+<input type="hidden" name="csrf" value="{{.CSRFToken}}">
+<span class="muted" style="margin-right:10px">{{.Admin.Username}}</span>
+<button class="btn" type="submit">Sign out</button>
+</form>
+{{end}}{{end}}{{end}}
+</div></header>
+<main><div class="wrap">
+{{end}}
+
+{{define "bottom"}}
+</div></main>
+</body>
+</html>
+{{end}}

@@ -54,7 +54,7 @@ ${routes
 </urlset>
 `
 await writeFile(join(clientDir, 'sitemap.xml'), sitemap)
-await writeFile(join(clientDir, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${server.baseUrl}/sitemap.xml\n`)
+await writeFile(join(clientDir, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /admin\n\nSitemap: ${server.baseUrl}/sitemap.xml\n`)
 
 // The SSR bundle is a build tool only; it must never be embedded.
 await rm(join(root, 'dist', 'server'), { recursive: true, force: true })

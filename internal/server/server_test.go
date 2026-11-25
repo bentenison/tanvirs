@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"net/mail"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +20,7 @@ import (
 	"github.com/bentenison/portfolio/internal/contact"
 	"github.com/bentenison/portfolio/internal/handlers"
 	"github.com/bentenison/portfolio/internal/middleware"
+	"github.com/bentenison/portfolio/internal/store"
 	"github.com/bentenison/portfolio/internal/web"
 )
 
@@ -65,27 +65,27 @@ func testFS() fstest.MapFS {
 	}
 }
 
-type fakeMailer struct {
-	mu   sync.Mutex
-	err  error
-	sent []contact.Message
+type fakeSaver struct {
+	mu    sync.Mutex
+	err   error
+	saved []store.NewMessage
 }
 
-func (m *fakeMailer) Send(_ context.Context, msg contact.Message) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.err != nil {
-		return m.err
+func (f *fakeSaver) CreateMessage(_ context.Context, m store.NewMessage) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.err != nil {
+		return 0, f.err
 	}
-	m.sent = append(m.sent, msg)
-	return nil
+	f.saved = append(f.saved, m)
+	return int64(len(f.saved)), nil
 }
 
 type env struct {
 	h      http.Handler
 	health *handlers.Health
 	logs   *bytes.Buffer
-	mailer *fakeMailer
+	saver  *fakeSaver
 }
 
 type opt func(*Options)
@@ -93,13 +93,13 @@ type opt func(*Options)
 func newEnv(t *testing.T, opts ...opt) *env {
 	t.Helper()
 	logs := &bytes.Buffer{}
-	e := &env{health: handlers.NewHealth(), logs: logs, mailer: &fakeMailer{}}
+	e := &env{health: handlers.NewHealth(), logs: logs, saver: &fakeSaver{}}
 	o := Options{
 		Config:  config.Config{TrustedProxies: nil},
 		Logger:  slog.New(slog.NewJSONHandler(&syncWriter{w: logs}, nil)),
 		Static:  testFS(),
 		Health:  e.health,
-		Mailer:  e.mailer,
+		Saver:   e.saver,
 		Limiter: contact.NewDefaultLimiter(),
 	}
 	for _, f := range opts {
@@ -510,7 +510,7 @@ func TestContactStatus(t *testing.T) {
 	if m := decode(t, on.get("/api/contact")); m["enabled"] != true {
 		t.Errorf("enabled = %v", m["enabled"])
 	}
-	off := newEnv(t, func(o *Options) { o.Mailer = nil })
+	off := newEnv(t, func(o *Options) { o.Saver = nil })
 	if m := decode(t, off.get("/api/contact")); m["enabled"] != false {
 		t.Errorf("enabled = %v", m["enabled"])
 	}
@@ -581,7 +581,7 @@ func TestContactRequests(t *testing.T) {
 					}
 				}
 			}
-			if len(e.mailer.sent) != 0 {
+			if len(e.saver.saved) != 0 {
 				t.Error("mail sent for rejected request")
 			}
 		})
@@ -595,7 +595,7 @@ func TestContactHoneypot(t *testing.T) {
 	if w.Code != 200 || decode(t, w)["ok"] != true {
 		t.Errorf("got %d %s", w.Code, w.Body.String())
 	}
-	if len(e.mailer.sent) != 0 {
+	if len(e.saver.saved) != 0 {
 		t.Error("honeypot submission was delivered")
 	}
 	if !strings.Contains(e.logs.String(), "spam dropped") {
@@ -610,37 +610,27 @@ func TestContactSuccess(t *testing.T) {
 	if w.Code != 200 || decode(t, w)["ok"] != true {
 		t.Fatalf("got %d %s", w.Code, w.Body.String())
 	}
-	if len(e.mailer.sent) != 1 {
-		t.Fatalf("sent %d messages", len(e.mailer.sent))
+	if len(e.saver.saved) != 1 {
+		t.Fatalf("sent %d messages", len(e.saver.saved))
 	}
-	got := e.mailer.sent[0]
-	want := contact.Message{Name: "Ada Lovelace", Email: "ada@example.com", Body: "Hi!\nLet's talk.", RequestID: "req-42"}
-	if got != want {
-		t.Errorf("message = %+v, want %+v", got, want)
+	got := e.saver.saved[0]
+	if got.Name != "Ada Lovelace" || got.Email != "ada@example.com" || got.Message != "Hi!\nLet's talk." || got.RequestID != "req-42" {
+		t.Errorf("saved = %+v", got)
 	}
-	// Render the email exactly as the SMTP mailer would and verify the
-	// headers contain no injected lines.
-	raw := string(contact.BuildMessage(mustAddr(t, "site@example.com"), mustAddr(t, "owner@example.com"), got, time.Now()))
-	head, _, _ := strings.Cut(raw, "\r\n\r\n")
-	for _, line := range strings.Split(head, "\r\n") {
-		if strings.ContainsAny(line, "\r\n") {
-			t.Errorf("header line with CR/LF: %q", line)
-		}
-	}
-	if !strings.Contains(head, "Reply-To: <ada@example.com>") || !strings.Contains(head, "Subject: Portfolio contact: Ada Lovelace") {
-		t.Errorf("unexpected headers:\n%s", head)
+	if got.ClientIP == "" {
+		t.Error("client IP not recorded")
 	}
 }
 
-func TestContactDeliveryFailure(t *testing.T) {
+func TestContactSaveFailure(t *testing.T) {
 	e := newEnv(t)
-	e.mailer.err = errors.New("smtp: connection refused")
+	e.saver.err = errors.New("db: connection refused")
 	w := e.do(http.MethodPost, "/api/contact", jsonHdr(), validBody)
-	if w.Code != 502 || decode(t, w)["error"] != "delivery_failed" {
+	if w.Code != 503 || decode(t, w)["error"] != "save_failed" {
 		t.Errorf("got %d %s", w.Code, w.Body.String())
 	}
 	if !strings.Contains(e.logs.String(), "connection refused") {
-		t.Error("delivery error not logged")
+		t.Error("save error not logged")
 	}
 }
 
@@ -705,13 +695,4 @@ func TestContactGlobalRateLimit(t *testing.T) {
 			t.Errorf("%s: %d, want %d", ip, w.Code, want)
 		}
 	}
-}
-
-func mustAddr(t *testing.T, s string) *mail.Address {
-	t.Helper()
-	a, err := mail.ParseAddress(s)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return a
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/bentenison/portfolio/internal/admin"
 	"github.com/bentenison/portfolio/internal/config"
 	"github.com/bentenison/portfolio/internal/contact"
 	"github.com/bentenison/portfolio/internal/handlers"
@@ -30,10 +31,11 @@ const (
 type Options struct {
 	Config  config.Config
 	Logger  *slog.Logger
-	Static  fs.FS            // embedded frontend build
-	Health  *handlers.Health // readiness flag, flipped by the caller on shutdown
-	Mailer  contact.Mailer   // nil disables the contact form
-	Limiter *contact.Limiter // contact rate limiter; caller runs its janitor
+	Static  fs.FS                 // embedded frontend build
+	Health  *handlers.Health      // readiness flag, flipped by the caller on shutdown
+	Saver   handlers.MessageSaver // nil disables the contact form
+	Limiter *contact.Limiter      // contact rate limiter; caller runs its janitor
+	Admin   *admin.Handler        // nil disables /admin
 }
 
 var releaseMode sync.Once
@@ -69,10 +71,14 @@ func NewEngine(o Options) (*gin.Engine, error) {
 	r.GET("/readyz", o.Health.Readyz)
 	r.HEAD("/readyz", o.Health.Readyz)
 
-	c := &handlers.Contact{Mailer: o.Mailer, Limiter: o.Limiter, Logger: o.Logger}
+	c := &handlers.Contact{Saver: o.Saver, Limiter: o.Limiter, Logger: o.Logger}
 	api := r.Group("/api")
 	api.GET("/contact", c.Status)
 	api.POST("/contact", middleware.BodyLimit(handlers.MaxContactBody), c.Submit)
+
+	if o.Admin != nil {
+		o.Admin.Register(r)
+	}
 
 	r.NoRoute(func(c *gin.Context) {
 		if middleware.IsAPI(c.Request.URL.Path) {

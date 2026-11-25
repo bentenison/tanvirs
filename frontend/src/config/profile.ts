@@ -45,7 +45,9 @@ export const profile: Profile = {
     },
   ],
   links: {
-    email: 'shaikhtanvir998@gmail.com',
+    // Left empty on purpose: the contact form delivers to the inbox set in the
+    // server's CONTACT_TO, so no personal address is published on the site.
+    email: '',
     github: 'https://github.com/bentenison',
     linkedin: '',
     resume: '',

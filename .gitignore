@@ -29,3 +29,6 @@ Thumbs.db
 
 # Private interview preparation notes
 /interview-prep/
+
+# alwaysdata deploy secrets (API key, mailbox and SMTP passwords)
+/deploy/alwaysdata/alwaysdata.env

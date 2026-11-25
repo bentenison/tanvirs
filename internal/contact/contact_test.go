@@ -1,19 +1,12 @@
 package contact
 
 import (
-	"bufio"
 	"context"
-	"io"
-	"mime/quotedprintable"
-	"net"
-	"net/mail"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/bentenison/portfolio/internal/config"
 )
 
 func TestValidate(t *testing.T) {
@@ -140,169 +133,5 @@ func TestLimiterConcurrentAndRun(t *testing.T) {
 	<-done
 	if allowed != 50 {
 		t.Errorf("allowed = %d, want 50 (global cap)", allowed)
-	}
-}
-
-func TestBuildMessageNoInjection(t *testing.T) {
-	from := &mail.Address{Name: "Portfolio", Address: "site@example.com"}
-	to := &mail.Address{Address: "owner@example.com"}
-	raw := BuildMessage(from, to, Message{
-		Name:      "Eve\r\nBcc: victim@example.com",
-		Email:     "eve@example.com\nX-Injected: 1",
-		Body:      "Hello\nBcc: not-a-header@example.com\n.\nünïcödé = test",
-		RequestID: "rid-1",
-	}, time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
-
-	msg, err := mail.ReadMessage(strings.NewReader(string(raw)))
-	if err != nil {
-		t.Fatalf("ReadMessage: %v", err)
-	}
-	for _, k := range []string{"Bcc", "X-Injected"} {
-		if v := msg.Header.Get(k); v != "" {
-			t.Errorf("injected header %s = %q", k, v)
-		}
-	}
-	head, _, _ := strings.Cut(string(raw), "\r\n\r\n")
-	for _, line := range strings.Split(head, "\r\n") {
-		if strings.ContainsAny(line, "\r\n") {
-			t.Errorf("header line contains CR/LF: %q", line)
-		}
-	}
-	checks := map[string]string{
-		"From":                      `"Portfolio" <site@example.com>`,
-		"To":                        "<owner@example.com>",
-		"Subject":                   "Portfolio contact: EveBcc: victim@example.com",
-		"MIME-Version":              "1.0",
-		"Content-Type":              "text/plain; charset=utf-8",
-		"Content-Transfer-Encoding": "quoted-printable",
-		"Date":                      "Fri, 02 Jan 2026 03:04:05 +0000",
-	}
-	for k, want := range checks {
-		if got := msg.Header.Get(k); got != want {
-			t.Errorf("%s = %q, want %q", k, got, want)
-		}
-	}
-	if rt := msg.Header.Get("Reply-To"); !strings.Contains(rt, "eve@example.com") {
-		t.Errorf("Reply-To = %q", rt)
-	}
-	if id := msg.Header.Get("Message-ID"); !strings.HasSuffix(id, "@example.com>") {
-		t.Errorf("Message-ID = %q", id)
-	}
-	body, err := io.ReadAll(quotedprintable.NewReader(msg.Body))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, want := range []string{"Name: EveBcc: victim@example.com", "Request ID: rid-1", "ünïcödé = test"} {
-		if !strings.Contains(string(body), want) {
-			t.Errorf("body missing %q:\n%s", want, body)
-		}
-	}
-}
-
-func TestNewSMTPMailerRequiresConfig(t *testing.T) {
-	if _, err := NewSMTPMailer(config.SMTP{Host: "h"}); err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-// fakeSMTP is a minimal plaintext SMTP server that records one DATA payload.
-func fakeSMTP(t *testing.T) (port int, got <-chan string) {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { ln.Close() })
-	ch := make(chan string, 1)
-	go func() {
-		conn, err := ln.Accept()
-		if err != nil {
-			return
-		}
-		defer conn.Close()
-		r := bufio.NewReader(conn)
-		say := func(s string) { _, _ = io.WriteString(conn, s+"\r\n") }
-		say("220 fake ESMTP")
-		for {
-			line, err := r.ReadString('\n')
-			if err != nil {
-				return
-			}
-			cmd := strings.ToUpper(strings.TrimSpace(line))
-			switch {
-			case strings.HasPrefix(cmd, "EHLO"), strings.HasPrefix(cmd, "HELO"):
-				say("250 fake")
-			case strings.HasPrefix(cmd, "MAIL"), strings.HasPrefix(cmd, "RCPT"):
-				say("250 ok")
-			case cmd == "DATA":
-				say("354 go ahead")
-				var data strings.Builder
-				for {
-					l, err := r.ReadString('\n')
-					if err != nil {
-						return
-					}
-					if l == ".\r\n" {
-						break
-					}
-					data.WriteString(l)
-				}
-				ch <- data.String()
-				say("250 queued")
-			case cmd == "QUIT":
-				say("221 bye")
-				return
-			default:
-				say("502 unknown")
-			}
-		}
-	}()
-	return ln.Addr().(*net.TCPAddr).Port, ch
-}
-
-func TestSMTPMailerSendPlain(t *testing.T) {
-	port, got := fakeSMTP(t)
-	m, err := NewSMTPMailer(config.SMTP{
-		Host: "127.0.0.1", Port: port, TLS: config.TLSNone,
-		From: "site@example.com", To: "owner@example.com",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = m.Send(context.Background(), Message{Name: "Ada", Email: "ada@example.com", Body: "Hello world!", RequestID: "r1"})
-	if err != nil {
-		t.Fatalf("Send: %v", err)
-	}
-	select {
-	case data := <-got:
-		if !strings.Contains(data, "Subject: Portfolio contact: Ada") || !strings.Contains(data, "Hello world!") {
-			t.Errorf("unexpected data:\n%s", data)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("no data received")
-	}
-}
-
-func TestSMTPMailerStartTLSUnsupported(t *testing.T) {
-	port, _ := fakeSMTP(t)
-	m, _ := NewSMTPMailer(config.SMTP{
-		Host: "127.0.0.1", Port: port, TLS: config.TLSStartTLS,
-		From: "site@example.com", To: "owner@example.com",
-	})
-	if err := m.Send(context.Background(), Message{}); err == nil || !strings.Contains(err.Error(), "STARTTLS") {
-		t.Fatalf("err = %v, want STARTTLS error", err)
-	}
-}
-
-func TestSMTPMailerDialFailure(t *testing.T) {
-	ln, _ := net.Listen("tcp", "127.0.0.1:0")
-	port := ln.Addr().(*net.TCPAddr).Port
-	ln.Close()
-	m, _ := NewSMTPMailer(config.SMTP{
-		Host: "127.0.0.1", Port: port, TLS: config.TLSNone,
-		From: "site@example.com", To: "owner@example.com",
-	})
-	if err := m.Send(context.Background(), Message{}); err == nil {
-		t.Fatal("expected dial error")
 	}
 }

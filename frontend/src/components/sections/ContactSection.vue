@@ -17,6 +17,10 @@
           <a v-if="links.email" :href="`mailto:${links.email}`" class="contact__email display">
             <span>{{ emailUser }}</span><span class="contact__at">@{{ emailDomain }}</span>
           </a>
+          <p v-else class="contact__note">
+            Tell me what you're building. The form reaches me directly, and I reply personally, usually within two
+            working days.
+          </p>
           <div class="contact__links">
             <button v-if="links.email" type="button" class="sim-btn" @click="copyEmail">
               <AppIcon :name="copied ? 'check' : 'copy'" :size="16" />
@@ -31,12 +35,16 @@
 
         <div class="contact__form" :class="{ 'contact__form--boxed': formEnabled }" data-reveal>
           <template v-if="formEnabled">
-            <p class="caption contact__form-title">Or send a message</p>
+            <p class="caption contact__form-title">{{ links.email ? 'Or send a message' : 'Send a message' }}</p>
             <ContactForm :email="links.email" />
           </template>
-          <p v-else-if="checked" class="contact__fallback">
+          <p v-else-if="checked && links.email" class="contact__fallback">
             The quickest way to reach me is email. I read everything that arrives at
-            <a v-if="links.email" :href="`mailto:${links.email}`">{{ links.email }}</a>.
+            <a :href="`mailto:${links.email}`">{{ links.email }}</a>.
+          </p>
+          <p v-else-if="checked" class="contact__fallback">
+            The contact form is unavailable right now.
+            <template v-if="links.github">You can still reach me through <a :href="links.github" target="_blank" rel="noopener noreferrer">GitHub</a>.</template>
           </p>
         </div>
       </div>
@@ -55,9 +63,9 @@ import { contactEnabled } from '@/services/contact'
 import { reveal } from '@/engine/animation/reveal'
 
 /**
- * Closing specimen: the organism returns at full size behind a large,
- * copyable email. The form appears only when the server reports that
- * SMTP delivery is configured; otherwise email is the honest path.
+ * Closing specimen: the organism returns behind the contact options. A
+ * public email is shown only if one is configured; the form appears only
+ * when the server reports that SMTP delivery is configured.
  */
 export default defineComponent({
   name: 'ContactSection',
@@ -203,6 +211,13 @@ export default defineComponent({
   align-items: center;
   gap: 1rem 1.75rem;
   margin-top: 2rem;
+}
+.contact__note {
+  margin: 0;
+  max-width: 30ch;
+  font-family: var(--font-display);
+  font-size: var(--step-3);
+  line-height: 1.15;
 }
 .contact__fallback {
   margin: 0;

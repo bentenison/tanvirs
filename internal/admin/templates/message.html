@@ -1,0 +1,90 @@
+{{define "message.html"}}{{template "top" .}}
+<style>
+.back{display:inline-block;margin:0 0 16px;color:var(--muted)}
+.card{border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:22px;margin:0 0 18px}
+.meta{display:grid;grid-template-columns:110px minmax(0,1fr);gap:6px 14px;margin:0}
+.meta dt{color:var(--muted);font-size:13px}
+.meta dd{margin:0;overflow-wrap:anywhere}
+.body{white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px;margin:18px 0 0;padding-top:18px;border-top:1px solid var(--border)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.actions form{display:inline}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+h2{font-size:15px;margin:0 0 12px}
+details summary{cursor:pointer;color:var(--danger)}
+details[open] summary{margin-bottom:10px}
+@media (max-width:820px){.cols{grid-template-columns:1fr}}
+</style>
+<a class="back" href="/admin">← All messages</a>
+{{with .Notice}}<p class="notice" role="status">{{.}}</p>{{end}}
+{{with .M}}
+<h1>{{.Name}}</h1>
+<div class="cols">
+<div>
+<article class="card" aria-label="Message">
+<dl class="meta">
+<dt>From</dt><dd>{{.Name}} &lt;<a href="{{mailto .}}">{{.Email}}</a>&gt;</dd>
+<dt>Received</dt><dd>{{when .CreatedAt}} <span class="muted">({{ago .CreatedAt}})</span></dd>
+<dt>Status</dt><dd><span class="badge {{.Status}}">{{label .Status}}</span></dd>
+</dl>
+<div class="body">{{.Message}}</div>
+</article>
+<section class="card" aria-labelledby="reply-h">
+<h2 id="reply-h">Reply</h2>
+<p class="muted" style="margin-top:0">Opens your mail app with their address, a subject and their message quoted. After sending, mark it as replied.</p>
+<div class="actions">
+<a class="btn primary" href="{{mailto .}}">Reply by email</a>
+<form method="post" action="/admin/messages/{{.ID}}/status">
+<input type="hidden" name="csrf" value="{{$.Session.CSRFToken}}">
+<input type="hidden" name="status" value="replied">
+<button class="btn" type="submit"{{if eq .Status "replied"}} disabled{{end}}>Mark as replied</button>
+</form>
+</div>
+</section>
+<section class="card" aria-labelledby="note-h">
+<h2 id="note-h">Private note</h2>
+<form method="post" action="/admin/messages/{{.ID}}/note">
+<input type="hidden" name="csrf" value="{{$.Session.CSRFToken}}">
+<label for="note" class="sr-only">Note</label>
+<textarea id="note" name="note" maxlength="5000" placeholder="Only you can see this.">{{.Note}}</textarea>
+<p><button class="btn" type="submit">Save note</button></p>
+</form>
+</section>
+</div>
+<aside>
+<section class="card" aria-labelledby="status-h">
+<h2 id="status-h">Status</h2>
+<div class="actions">
+{{$m := .}}{{range statuses}}
+<form method="post" action="/admin/messages/{{$m.ID}}/status">
+<input type="hidden" name="csrf" value="{{$.Session.CSRFToken}}">
+<input type="hidden" name="status" value="{{.}}">
+<button class="btn" type="submit" aria-pressed="{{if eq . $m.Status}}true{{else}}false{{end}}">{{label .}}</button>
+</form>
+{{end}}
+</div>
+</section>
+<section class="card" aria-labelledby="details-h">
+<h2 id="details-h">Details</h2>
+<dl class="meta">
+<dt>ID</dt><dd>{{.ID}}</dd>
+<dt>IP</dt><dd>{{or .ClientIP "-"}}</dd>
+<dt>Browser</dt><dd class="muted" style="font-size:13px">{{or .UserAgent "-"}}</dd>
+<dt>Request</dt><dd class="muted" style="font-size:13px">{{or .RequestID "-"}}</dd>
+<dt>Updated</dt><dd>{{when .UpdatedAt}}</dd>
+</dl>
+</section>
+<section class="card">
+<details>
+<summary>Delete this message</summary>
+<form method="post" action="/admin/messages/{{.ID}}/delete">
+<input type="hidden" name="csrf" value="{{$.Session.CSRFToken}}">
+<input type="hidden" name="confirm" value="yes">
+<p class="muted" style="margin-top:0">This can't be undone. Archive it instead if you might need it later.</p>
+<button class="btn danger" type="submit">Delete permanently</button>
+</form>
+</details>
+</section>
+</aside>
+</div>
+{{end}}
+{{template "bottom" .}}{{end}}
