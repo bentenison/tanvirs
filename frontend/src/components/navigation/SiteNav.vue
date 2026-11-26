@@ -39,6 +39,7 @@
     </nav>
 
     <MobileNav :items="items" :active="active" />
+    <span class="nav__progress" aria-hidden="true" />
   </header>
 </template>
 
@@ -201,6 +202,32 @@ export default defineComponent({
   inset: 0 0 auto 0;
   z-index: 50;
   pointer-events: none;
+}
+/* Reading progress: a hairline driven by the page's own scroll position.
+   Pure CSS (scroll-driven animation), so it costs no script; browsers
+   without support simply don't show it. */
+.nav__progress {
+  display: none;
+}
+@supports (animation-timeline: scroll()) {
+  .nav__progress {
+    display: block;
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 2px;
+    background: var(--accent);
+    transform-origin: 0 50%;
+    animation: nav-progress linear both;
+    animation-timeline: scroll(root block);
+  }
+}
+@keyframes nav-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 .nav__bar {
   display: flex;

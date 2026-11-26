@@ -18,7 +18,7 @@
       <div class="spread__body">
         <p class="spread__summary">{{ p.summary }}</p>
         <ul class="spread__highlights" role="list">
-          <li v-for="h in p.highlights" :key="h">{{ h }}</li>
+          <li v-for="h in p.highlights.slice(0, 3)" :key="h">{{ h }}</li>
         </ul>
         <div class="spread__foot">
           <StatusTag :status="p.status" />

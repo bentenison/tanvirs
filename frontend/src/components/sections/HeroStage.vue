@@ -125,21 +125,21 @@ export default defineComponent({
           key: 'out',
           kicker: 'Your request',
           title: 'This page is <em>the demo</em>.',
-          body: 'The panel traces the real request that just loaded this page: the network hops your browser measured, then the Go binary that answered it. Nothing is staged.',
+          body: 'The panel traces the real request that loaded this page, hop by hop.',
           focus: 'network',
         },
         {
           key: 'server',
           kicker: 'Inside the Go binary',
           title: 'Fractions of a <em>millisecond</em>.',
-          body: 'Middleware stamps a request ID and security headers, the router finds this page already embedded in the binary, and it goes back pre-compressed with brotli. Most of the time you see is the network, not the server.',
+          body: 'The page is embedded in the binary and sent pre-compressed; most of the wait is network.',
           focus: 'server',
         },
         {
           key: 'again',
           kicker: 'Try it',
           title: 'Send one <em>yourself</em>.',
-          body: 'A fresh request takes the same path. When the database is connected it also makes a real round trip to PostgreSQL, so you can watch every layer answer.',
+          body: 'A fresh request also makes a real round trip to PostgreSQL.',
           focus: 'data',
         },
       ],
@@ -151,19 +151,19 @@ export default defineComponent({
           key: 'core',
           kicker: 'The core',
           title: 'Go at the <em>centre</em>.',
-          body: 'Every product I build is a single Go service. It is the dense, steady core of the organism, the part that has to be fast, concurrent and boring in the best way.',
+          body: 'Every product I build is a single, fast Go service at its core.',
         },
         {
           key: 'domains',
           kicker: 'Eight domains, one body',
           title: 'Not a list of skills. <em>One</em> system.',
-          body: 'Frontend, data, messaging, infrastructure, performance, tooling and AI are lobes of the same membrane. Pull one and the others feel it: that is what working on a real product is like.',
+          body: 'Frontend, data, infrastructure and AI are lobes of one body. Pull one and the rest respond.',
         },
         {
           key: 'product',
           kicker: 'Shaped by the product',
           title: 'Each product takes a <em>different</em> shape.',
-          body: 'The same body reconfigures for every product. Pick one to see which parts of the organism it leans on.',
+          body: 'Pick a product to see which parts it leans on.',
         },
       ],
     }
@@ -328,10 +328,10 @@ export default defineComponent({
 }
 
 .eco {
-  padding-bottom: 20vh;
+  padding-bottom: 8vh;
 }
 .eco__step {
-  min-height: 82svh;
+  min-height: 52svh;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -423,7 +423,8 @@ export default defineComponent({
     display: none;
   }
   .eco__step {
-    min-height: 60svh;
+    min-height: 0;
+    padding-block: 2.5rem;
     opacity: 1;
   }
 }

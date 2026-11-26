@@ -25,6 +25,7 @@
             <p>{{ pr.body }}</p>
           </li>
         </ol>
+        <NextLink href="#contact" label="Get in touch" />
       </div>
     </div>
   </section>
@@ -33,12 +34,13 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import SectionHeading from '@/components/ui/SectionHeading.vue'
+import NextLink from '@/components/ui/NextLink.vue'
 import { profile } from '@/config/profile'
 import { reveal } from '@/engine/animation/reveal'
 
 export default defineComponent({
   name: 'AboutSection',
-  components: { SectionHeading },
+  components: { SectionHeading, NextLink },
   data() {
     return { profile, stop: null as null | (() => void) }
   },

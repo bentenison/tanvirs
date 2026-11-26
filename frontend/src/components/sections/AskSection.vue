@@ -2,7 +2,7 @@
   <section id="ask" ref="root" class="ask" aria-labelledby="ask-title">
     <div class="shell ask__grid">
       <div class="ask__intro">
-        <SectionHeading id="ask-title" index="02b" kicker="Ask my portfolio">
+        <SectionHeading id="ask-title" index="03b" kicker="Ask my portfolio">
           Ask, and watch it <em>find</em> the answer.
           <template #lede>
             Retrieval over this site's own content, running in your browser. You see each step: the terms, the passages it
@@ -10,6 +10,7 @@
           </template>
         </SectionHeading>
         <p class="ask__honest caption">No AI model and no server call: lexical retrieval (BM25) over what this site already says.</p>
+        <NextLink href="#capabilities" label="Capabilities" />
       </div>
 
       <div class="ask__panel">
@@ -76,6 +77,7 @@
 import { defineComponent, markRaw } from 'vue'
 import { RouterLink } from 'vue-router'
 import SectionHeading from '@/components/ui/SectionHeading.vue'
+import NextLink from '@/components/ui/NextLink.vue'
 import { ask, SUGGESTIONS, type AskResult } from '@/engine/ask/ask'
 import { tokenize } from '@/engine/sim/rag'
 import { reveal } from '@/engine/animation/reveal'
@@ -84,7 +86,7 @@ const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 
 export default defineComponent({
   name: 'AskSection',
-  components: { RouterLink, SectionHeading },
+  components: { RouterLink, SectionHeading, NextLink },
   data() {
     return {
       query: '',

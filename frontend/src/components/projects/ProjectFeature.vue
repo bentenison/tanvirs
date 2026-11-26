@@ -14,14 +14,14 @@
         <StatusTag :status="project.status" />
         <span class="caption">{{ project.stack.join(' · ') }}</span>
       </div>
-      <p class="pfeat__summary" data-reveal>{{ project.summary }}</p>
       <ul class="pfeat__highlights" role="list" data-reveal>
-        <li v-for="h in project.highlights" :key="h">{{ h }}</li>
+        <li v-for="h in project.highlights.slice(0, 3)" :key="h">{{ h }}</li>
       </ul>
       <div class="pfeat__actions" data-reveal>
         <MagneticButton :to="`/work/${project.slug}`" icon="arrow-right" @click="markTransition">Case study</MagneticButton>
         <InteractiveLink v-if="project.url" :href="project.url" external icon="arrow-up-right">Visit {{ project.name }}</InteractiveLink>
       </div>
+      <NextLink v-if="next" :href="next.href" :label="next.label" />
     </div>
     <div class="pfeat__surface" :style="{ viewTransitionName: vtName }">
       <component :is="surface" />
@@ -34,17 +34,22 @@ import { defineComponent, type PropType, type Component } from 'vue'
 import StatusTag from '@/components/ui/StatusTag.vue'
 import MagneticButton from '@/components/ui/MagneticButton.vue'
 import InteractiveLink from '@/components/ui/InteractiveLink.vue'
+import NextLink from '@/components/ui/NextLink.vue'
 import { surfaces } from '@/components/surfaces/registry'
 import type { Project } from '@/config/types'
 
-/** A miniature product launch: editorial copy beside a live, interactive product surface. */
+/**
+ * A miniature product launch: name, one line, three highlights and a live
+ * product surface. The full description lives on the case study page.
+ */
 export default defineComponent({
   name: 'ProjectFeature',
-  components: { StatusTag, MagneticButton, InteractiveLink },
+  components: { StatusTag, MagneticButton, InteractiveLink, NextLink },
   props: {
     project: { type: Object as PropType<Project>, required: true },
     number: { type: String, required: true },
     mirror: { type: Boolean, default: false },
+    next: { type: Object as PropType<{ href: string; label: string } | null>, default: null },
   },
   data() {
     return { vtName: 'none' }
@@ -106,10 +111,6 @@ export default defineComponent({
   flex-wrap: wrap;
   gap: 0.5rem 1.25rem;
   margin-bottom: 1.25rem;
-}
-.pfeat__summary {
-  color: var(--text-muted);
-  margin: 0 0 1.25rem;
 }
 .pfeat__highlights {
   margin: 0 0 2rem;

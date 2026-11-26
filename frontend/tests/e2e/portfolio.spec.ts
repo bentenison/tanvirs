@@ -252,7 +252,7 @@ test.describe('preferences', () => {
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
-    expect(bg).toBe('rgb(18, 19, 17)')
+    expect(bg).toBe('rgb(11, 18, 32)')
   })
 
   test('respects prefers-reduced-motion', async ({ browser }) => {

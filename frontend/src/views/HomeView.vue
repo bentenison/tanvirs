@@ -1,8 +1,8 @@
 <template>
   <div class="home">
     <HeroStage />
-    <AskSection />
     <WorkSection />
+    <AskSection />
     <CapabilitiesSection />
     <PlaygroundSection />
     <AboutSection />

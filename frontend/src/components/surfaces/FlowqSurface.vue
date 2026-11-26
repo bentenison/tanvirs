@@ -20,6 +20,7 @@
               <span class="mono fq__wait">{{ waitLabel(t) }}</span>
             </li>
           </TransitionGroup>
+          <p v-if="!waiting.length" class="fq__empty mono">Queue is empty</p>
         </section>
 
         <section class="fq__counters" aria-label="Counters">
@@ -152,6 +153,11 @@ export default defineComponent({
 <style scoped>
 .fq {
   --fq: oklch(0.62 0.12 230);
+  /* Fixed geometry: the queue and the status line reserve their full size,
+     so the surface never grows or shrinks as tickets come and go. */
+  --fq-row: 1.95rem;
+  --fq-gap: 0.25rem;
+  --fq-rows: 6;
   display: grid;
   grid-template-columns: 1fr 1.2fr;
   grid-template-areas:
@@ -190,9 +196,13 @@ export default defineComponent({
 .fq__counter {
   margin: 0;
   color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .fq__queue {
   grid-area: queue;
+  position: relative;
 }
 .fq__qhead {
   display: flex;
@@ -212,17 +222,40 @@ export default defineComponent({
 }
 .fq__list {
   position: relative;
+  height: calc(var(--fq-rows) * var(--fq-row) + (var(--fq-rows) - 1) * var(--fq-gap));
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 0.25rem;
+  grid-auto-rows: var(--fq-row);
+  align-content: start;
+  gap: var(--fq-gap);
+  overflow: hidden;
+}
+/* More tickets than rows: fade the last row instead of growing. */
+.fq__list:has(> :nth-child(7)) {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--fq-row)), transparent);
+}
+.fq__empty {
+  position: absolute;
+  inset: auto 0 0 0;
+  top: 2.3rem;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-faint);
+  font-size: 0.68rem;
 }
 .fq__item {
   display: grid;
   grid-template-columns: 3.6rem 1fr auto;
+  align-items: center;
   gap: 0.5rem;
-  padding: 0.35rem 0.55rem;
+  height: var(--fq-row);
+  box-sizing: border-box;
+  padding: 0 0.55rem;
   border-radius: 6px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -286,6 +319,13 @@ export default defineComponent({
   grid-area: why;
   margin: 0;
   font-size: 0.68rem;
+  line-height: 1.45;
+  /* Always two lines tall, whatever the message. */
+  height: calc(2 * 1.45em);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   color: var(--text-muted);
 }
 .tk-enter-from {

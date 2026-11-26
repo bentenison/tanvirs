@@ -3,43 +3,46 @@
     <div class="shell">
       <SectionHeading id="pg-title" index="05" kicker="Engineering playground">
         Experiments in <em>how</em> systems behave.
-        <template #lede>Four deterministic simulations of the problems I think about most. Change a parameter and watch the system respond.</template>
+        <template #lede>Four simulations of the problems I think about most. Each runs on its own page so this one stays light.</template>
       </SectionHeading>
 
-      <TabsRoot v-model="tab" class="pg__tabs" activation-mode="manual">
-        <TabsList class="pg__list" aria-label="Simulations">
-          <TabsTrigger v-for="t in tabs" :key="t.id" :value="t.id" class="pg__trigger">
-            <span class="mono pg__tidx">{{ t.index }}</span>{{ t.label }}
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent v-for="t in tabs" :key="t.id" :value="t.id" class="pg__panel">
-          <component :is="t.component" :index="`§05.${t.index}`" />
-        </TabsContent>
-      </TabsRoot>
+      <ul class="pg__grid" role="list">
+        <li v-for="d in demos" :key="d.id">
+          <RouterLink :to="`/playground#sim-${d.id}`" class="pg__card">
+            <span class="mono pg__idx">§05.{{ d.index }}</span>
+            <span class="pg__label">{{ d.label }}</span>
+            <span class="pg__blurb">{{ d.blurb }}</span>
+            <AppIcon name="arrow-right" :size="18" class="pg__arrow" />
+          </RouterLink>
+        </li>
+      </ul>
 
-      <p class="pg__more">
-        <InteractiveLink to="/playground" icon="arrow-right">Open all four side by side</InteractiveLink>
-      </p>
+      <div class="pg__foot">
+        <MagneticButton to="/playground" icon="arrow-right">Open the playground</MagneticButton>
+      </div>
+      <NextLink href="#about" label="About" />
     </div>
   </section>
 </template>
 
 <script lang="ts">
-import { defineComponent, markRaw } from 'vue'
-import { TabsRoot, TabsList, TabsTrigger, TabsContent } from 'reka-ui'
+import { defineComponent } from 'vue'
+import { RouterLink } from 'vue-router'
 import SectionHeading from '@/components/ui/SectionHeading.vue'
-import InteractiveLink from '@/components/ui/InteractiveLink.vue'
+import MagneticButton from '@/components/ui/MagneticButton.vue'
+import AppIcon from '@/components/ui/AppIcon.vue'
+import NextLink from '@/components/ui/NextLink.vue'
 import { playgroundDemos } from '@/components/playground/demos'
 
-/** Inactive tab panels unmount, so only one simulation runs at a time. */
+/**
+ * Home page teaser. The simulations themselves live on /playground, so the
+ * home page shows what exists and how to reach it, without their weight.
+ */
 export default defineComponent({
   name: 'PlaygroundSection',
-  components: { TabsRoot, TabsList, TabsTrigger, TabsContent, SectionHeading, InteractiveLink },
+  components: { RouterLink, SectionHeading, MagneticButton, AppIcon, NextLink },
   data() {
-    return {
-      tab: playgroundDemos[0].id,
-      tabs: playgroundDemos.map((d) => ({ ...d, component: markRaw(d.component) })),
-    }
+    return { demos: playgroundDemos.map(({ id, index, label, blurb }) => ({ id, index, label, blurb })) }
   },
 })
 </script>
@@ -48,55 +51,69 @@ export default defineComponent({
 .pg {
   padding-block: clamp(5rem, 12vw, 10rem);
 }
-.pg__tabs {
-  margin-top: clamp(2.5rem, 6vw, 4.5rem);
+.pg__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin: clamp(2.5rem, 6vw, 4rem) 0 0;
+  padding: 0;
+  list-style: none;
 }
-.pg__list {
-  display: flex;
-  gap: 0.25rem;
-  margin-bottom: 2.5rem;
-  overflow-x: auto;
-  scrollbar-width: none;
-  border-bottom: 1px solid var(--border);
-}
-.pg__trigger {
+.pg__card {
   position: relative;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  min-height: 3rem;
-  padding: 0 1rem;
-  border: 0;
-  background: transparent;
+  display: grid;
+  gap: 0.4rem;
+  height: 100%;
+  padding: 1.25rem 1.25rem 3rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color var(--dur-fast, 160ms) ease, transform var(--dur-fast, 160ms) ease;
+}
+.pg__card:hover {
+  border-color: var(--accent-ink);
+  transform: translateY(-2px);
+}
+.pg__idx {
+  font-size: var(--step--2);
+  color: var(--accent-ink);
+}
+.pg__label {
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  line-height: 1.1;
+}
+.pg__blurb {
   color: var(--text-muted);
   font-size: var(--step--1);
-  white-space: nowrap;
-  cursor: pointer;
 }
-.pg__trigger::after {
-  content: '';
+.pg__arrow {
   position: absolute;
-  left: 0.6rem;
-  right: 0.6rem;
-  bottom: -1px;
-  height: 2px;
-  background: var(--text);
-  transform: scaleX(0);
-  transition: transform var(--dur-premium) cubic-bezier(0.2, 1.3, 0.3, 1);
+  right: 1.25rem;
+  bottom: 1.1rem;
+  color: var(--text-faint);
 }
-.pg__trigger[data-state='active'] {
-  color: var(--text);
+.pg__card:hover .pg__arrow {
+  color: var(--accent-ink);
 }
-.pg__trigger[data-state='active']::after {
-  transform: scaleX(1);
+.pg__foot {
+  margin-top: 2rem;
 }
-.pg__tidx {
-  font-size: 0.68rem;
+@media (max-width: 1023px) {
+  .pg__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
-.pg__panel:focus-visible {
-  outline-offset: 8px;
+@media (max-width: 520px) {
+  .pg__grid {
+    grid-template-columns: 1fr;
+  }
 }
-.pg__more {
-  margin: 3rem 0 0;
+@media (prefers-reduced-motion: reduce) {
+  .pg__card:hover {
+    transform: none;
+  }
 }
 </style>

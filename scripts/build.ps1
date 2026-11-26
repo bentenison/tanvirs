@@ -33,7 +33,11 @@ $binDir = Join-Path $root 'bin'
 
 function Step([string]$name) { Write-Host "`n==> $name" -ForegroundColor Cyan }
 function Invoke-Checked([string]$what, [scriptblock]$block) {
-  & $block
+  # Exit codes decide success. With 'Stop', Windows PowerShell 5.1 turns any
+  # redirected stderr line (e.g. a build warning) into a terminating error.
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try { & $block } finally { $ErrorActionPreference = $prev }
   if ($LASTEXITCODE -ne 0) { throw "$what failed (exit $LASTEXITCODE)" }
 }
 

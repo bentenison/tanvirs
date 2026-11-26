@@ -21,27 +21,25 @@ export const profile: Profile = {
   introduction:
     'Backend-focused full-stack developer. Five-plus years building efficient Go services, interactive Vue applications and intelligent developer tools.',
   biography: [
-    'I build software from the database up. Most of my work lives in Go (services, concurrent pipelines and the APIs that hold a product together) with Vue on the other side of the wire, so I care about the whole path a request travels.',
-    'Over five years I have worked on large-scale learning platforms: designing schemas and APIs, moving data between databases, making slow paths fast, reviewing code and helping small teams ship with confidence.',
-    'Outside that work I build my own products end to end. EduFlow, Kreovio, Forge and FlowQ are each a single Go service with a Vue front end and PostgreSQL underneath, designed, built and operated by me.',
-    'I am most curious about concurrency, database behaviour under load, and how AI fits into a developer’s daily loop: retrieval-augmented generation, careful prompting, and using models as a fast collaborator while keeping tests and review as the source of truth.',
+    'I build software from the database up: Go services and APIs on one side of the wire, Vue on the other, so I care about the whole path a request travels.',
+    'Over five years I have designed schemas and APIs for large learning platforms and made slow paths fast. On my own I build and run EduFlow, Kreovio, Forge and FlowQ end to end.',
   ],
   principles: [
     {
       title: 'Efficient by default',
-      body: 'Small binaries, few moving parts, queries that use their indexes. Performance is a product feature, not a later ticket.',
+      body: 'Small binaries, few moving parts, indexed queries.',
     },
     {
       title: 'Products, not demos',
-      body: 'Permissions, migrations, offline states and languages are where real software lives. I build those parts first.',
+      body: 'Permissions, migrations and offline states come first.',
     },
     {
       title: 'Measure, then change',
-      body: 'Profiles and query plans before opinions. Every optimisation should be explainable in one sentence and one graph.',
+      body: 'Profiles and query plans before opinions.',
     },
     {
       title: 'Keep learning in public',
-      body: 'Experiments, playgrounds and small tools are how I test ideas before they reach a product.',
+      body: 'Small tools and experiments test ideas before products do.',
     },
   ],
   links: {

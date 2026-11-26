@@ -3,7 +3,7 @@
     <div class="shell">
       <SectionHeading id="caps-title" index="04" kicker="Engineering capabilities">
         Shown, <em>not</em> scored.
-        <template #lede>No percentage bars. Six small working specimens of how I approach each layer. Try them.</template>
+        <template #lede>No percentage bars: six small working specimens, one per layer. Try them.</template>
       </SectionHeading>
 
       <div class="caps__list">
@@ -21,6 +21,7 @@
           </div>
         </article>
       </div>
+      <NextLink href="#playground" label="Playground" />
     </div>
   </section>
 </template>
@@ -28,6 +29,7 @@
 <script lang="ts">
 import { defineComponent, markRaw, type Component } from 'vue'
 import SectionHeading from '@/components/ui/SectionHeading.vue'
+import NextLink from '@/components/ui/NextLink.vue'
 import RequestPipeline from '@/components/capabilities/RequestPipeline.vue'
 import UiStates from '@/components/capabilities/UiStates.vue'
 import IndexScan from '@/components/capabilities/IndexScan.vue'
@@ -47,14 +49,14 @@ interface Capability {
 
 export default defineComponent({
   name: 'CapabilitiesSection',
-  components: { SectionHeading },
+  components: { SectionHeading, NextLink },
   data() {
     const items: Capability[] = [
       {
         id: 'backend',
         domain: 'Backend',
         title: 'Requests with a clear path',
-        body: 'Middleware does one job each (recovery, request IDs, auth, validation), so handlers stay small and failures are explicit.',
+        body: 'Each middleware does one job, so handlers stay small and failures are explicit.',
         points: ['Gin and the standard library', 'Validation errors that name the field', 'Context-aware cancellation'],
         component: markRaw(RequestPipeline),
       },
@@ -62,7 +64,7 @@ export default defineComponent({
         id: 'frontend',
         domain: 'Frontend',
         title: 'Interfaces people understand',
-        body: 'I design and build Vue interfaces with Tailwind CSS, shadcn-vue and other component libraries, and I treat loading, empty and error states as part of the design, not an afterthought.',
+        body: 'Vue interfaces built with Tailwind CSS and shadcn-vue, where loading, empty and error states are designed too.',
         points: ['Vue 3, Tailwind CSS, shadcn-vue', 'Design tokens and reusable components', 'UI/UX design for every state'],
         component: markRaw(UiStates),
       },
@@ -70,7 +72,7 @@ export default defineComponent({
         id: 'data',
         domain: 'Databases',
         title: 'Read less to answer faster',
-        body: 'Most slow endpoints are slow queries. Indexes that match how data is filtered turn full scans into a handful of page reads.',
+        body: 'Most slow endpoints are slow queries. The right index turns a full scan into a few page reads.',
         points: ['PostgreSQL query plans', 'Indexing and partitioning', 'Safe schema migrations'],
         component: markRaw(IndexScan),
       },
@@ -86,7 +88,7 @@ export default defineComponent({
         id: 'performance',
         domain: 'Performance',
         title: 'Concurrency where it pays',
-        body: 'Independent work should not wait in line. Fanning out with an errgroup makes latency the slowest call, not the sum.',
+        body: 'Fanning out with an errgroup makes latency the slowest call, not the sum.',
         points: ['Goroutines, channels, errgroup', 'Worker pools and back-pressure', 'Profiling before optimising'],
         component: markRaw(FanOut),
       },
