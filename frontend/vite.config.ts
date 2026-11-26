@@ -16,6 +16,7 @@ export default defineConfig({
       '/api': { target: backend, changeOrigin: false },
       '/healthz': { target: backend },
       '/readyz': { target: backend },
+      '/site-config.js': { target: backend },
     },
   },
   build: {

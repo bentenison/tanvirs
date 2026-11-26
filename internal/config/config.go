@@ -18,6 +18,10 @@
 //	                           are trusted when determining the client IP.
 //	                           Default "127.0.0.1,::1". Use "none" to trust no proxy.
 //	PORTFOLIO_HSTS             Boolean; send Strict-Transport-Security. Default false.
+//	PORTFOLIO_HERO             Landing-page centrepiece: "organism" or "request" (the
+//	                           visitor's own request traced through the stack).
+//	                           Default "organism". Takes effect on the next page load.
+//	PORTFOLIO_ASK              Boolean; show the "Ask my portfolio" section. Default true.
 //	DATABASE_URL               PostgreSQL connection string, e.g.
 //	                           postgres://user:pass@host:5432/db?sslmode=require.
 //	                           Enables the contact form and the admin area. Never logged.
@@ -50,6 +54,7 @@ const (
 	DefaultBaseURL        = "https://tanvirs.alwaysdata.net"
 	DefaultTrustedProxies = "127.0.0.1,::1"
 	DefaultAdminUsername  = "admin"
+	DefaultHero           = "organism"
 	DefaultSessionTTL     = 12 * time.Hour
 	MinAdminPasswordLen   = 12
 )
@@ -72,6 +77,8 @@ type Config struct {
 	LogFormat      LogFormat
 	TrustedProxies []string // nil means trust no proxy
 	HSTS           bool
+	Hero           string // "request" or "organism"
+	Ask            bool
 	Database       Database
 	Admin          Admin
 }
@@ -128,6 +135,8 @@ func (c Config) LogValue() slog.Value {
 		slog.String("log_format", string(c.LogFormat)),
 		slog.Any("trusted_proxies", c.TrustedProxies),
 		slog.Bool("hsts", c.HSTS),
+		slog.String("hero", c.Hero),
+		slog.Bool("ask", c.Ask),
 		slog.Any("database", c.Database),
 		slog.Any("admin", c.Admin),
 	)
@@ -149,6 +158,8 @@ func Load(getenv func(string) string) (Config, error) {
 		BaseURL:   DefaultBaseURL,
 		LogLevel:  slog.LevelInfo,
 		LogFormat: LogJSON,
+		Hero:      DefaultHero,
+		Ask:       true,
 		Admin:     Admin{Username: DefaultAdminUsername, SessionTTL: DefaultSessionTTL},
 	}
 
@@ -236,6 +247,22 @@ func Load(getenv func(string) string) (Config, error) {
 			fail("PORTFOLIO_HSTS %q: not a boolean", v)
 		}
 		cfg.HSTS = b
+	}
+
+	if v := get("PORTFOLIO_HERO"); v != "" {
+		switch h := strings.ToLower(v); h {
+		case "request", "organism":
+			cfg.Hero = h
+		default:
+			fail("PORTFOLIO_HERO %q: want request or organism", v)
+		}
+	}
+	if v := get("PORTFOLIO_ASK"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			fail("PORTFOLIO_ASK %q: not a boolean", v)
+		}
+		cfg.Ask = b
 	}
 
 	// Database.

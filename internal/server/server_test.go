@@ -696,3 +696,87 @@ func TestContactGlobalRateLimit(t *testing.T) {
 		}
 	}
 }
+
+type fakePinger struct{ err error }
+
+func (p fakePinger) Ping(context.Context) error { return p.err }
+
+func TestHTMLHasServerTiming(t *testing.T) {
+	e := newEnv(t)
+	w := e.do(http.MethodGet, "/", map[string]string{"X-Request-ID": "abc-123"}, "")
+	st := w.Header().Get("Server-Timing")
+	for _, want := range []string{"mw;dur=", "app;dur=", "embed;dur=", "total;dur=", `rid;desc="abc-123"`} {
+		if !strings.Contains(st, want) {
+			t.Errorf("Server-Timing %q missing %q", st, want)
+		}
+	}
+	if js := e.do(http.MethodGet, "/assets/app-abc123.js", nil, ""); js.Code != 200 || js.Header().Get("Server-Timing") != "" {
+		t.Error("Server-Timing should only be sent on HTML documents")
+	}
+}
+
+func TestTraceEndpoint(t *testing.T) {
+	t.Run("without database", func(t *testing.T) {
+		e := newEnv(t)
+		w := e.do(http.MethodGet, "/api/trace", nil, "")
+		m := decode(t, w)
+		if w.Code != 200 || m["database"] != "not configured" || m["request_id"] == "" {
+			t.Fatalf("got %d %v", w.Code, m)
+		}
+		srv := m["server"].(map[string]any)
+		if srv["database_ms"] != nil || srv["total_ms"] == nil {
+			t.Errorf("server = %v", srv)
+		}
+		if w.Header().Get("Cache-Control") != "no-store" || !strings.Contains(w.Header().Get("Server-Timing"), "total;dur=") {
+			t.Errorf("headers = %v", w.Header())
+		}
+	})
+	t.Run("with database", func(t *testing.T) {
+		e := newEnv(t, func(o *Options) { o.DB = fakePinger{} })
+		w := e.do(http.MethodGet, "/api/trace", nil, "")
+		m := decode(t, w)
+		if m["database"] != "postgresql" || m["server"].(map[string]any)["database_ms"] == nil {
+			t.Fatalf("got %v", m)
+		}
+		if !strings.Contains(w.Header().Get("Server-Timing"), "db;dur=") {
+			t.Error("db stage missing from Server-Timing")
+		}
+	})
+	t.Run("database down", func(t *testing.T) {
+		e := newEnv(t, func(o *Options) { o.DB = fakePinger{err: errors.New("down")} })
+		if m := decode(t, e.do(http.MethodGet, "/api/trace", nil, "")); m["database"] != "unavailable" {
+			t.Fatalf("got %v", m)
+		}
+	})
+	t.Run("rate limited", func(t *testing.T) {
+		e := newEnv(t, func(o *Options) { o.TraceLimiter = contact.NewLimiter(2, time.Minute, 100, time.Hour) })
+		for range 2 {
+			e.do(http.MethodGet, "/api/trace", nil, "")
+		}
+		if w := e.do(http.MethodGet, "/api/trace", nil, ""); w.Code != 429 || w.Header().Get("Retry-After") == "" {
+			t.Errorf("got %d", w.Code)
+		}
+	})
+}
+
+func TestSiteConfigScript(t *testing.T) {
+	for _, tt := range []struct {
+		hero string
+		ask  bool
+		want []string
+	}{
+		{"request", true, []string{`"hero":"request"`, `"ask":true`, `'data-ask','on'`}},
+		{"organism", false, []string{`"hero":"organism"`, `"ask":false`, `'data-ask','off'`}},
+	} {
+		e := newEnv(t, func(o *Options) { o.Config.Hero, o.Config.Ask = tt.hero, tt.ask })
+		w := e.do(http.MethodGet, "/site-config.js", nil, "")
+		if w.Code != 200 || !strings.HasPrefix(w.Header().Get("Content-Type"), "text/javascript") {
+			t.Fatalf("got %d %s", w.Code, w.Header().Get("Content-Type"))
+		}
+		for _, want := range tt.want {
+			if !strings.Contains(w.Body.String(), want) {
+				t.Errorf("%s: body %q missing %q", tt.hero, w.Body.String(), want)
+			}
+		}
+	}
+}

@@ -3,8 +3,8 @@
  *
  * The initial tier comes from cheap, conservative capability checks, no
  * benchmarks. A frame-time monitor drops one tier when frames stay slow
- * for a sustained window, and never climbs back during the session (to
- * avoid oscillating).
+ * for a sustained window. The organism host keeps that drop only when the
+ * page was slow while idle; a drop during a drag is undone once input stops.
  */
 export type QualityTier = 'high' | 'balanced' | 'light' | 'static'
 

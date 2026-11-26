@@ -36,6 +36,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Database.Enabled() {
 		t.Error("database should be disabled by default")
 	}
+	if cfg.Hero != "organism" || !cfg.Ask {
+		t.Errorf("presentation defaults = %q %v", cfg.Hero, cfg.Ask)
+	}
 	if cfg.Admin.Username != "admin" || cfg.Admin.SessionTTL != DefaultSessionTTL || cfg.Admin.Password != "" {
 		t.Errorf("admin defaults = %+v", cfg.Admin)
 	}
@@ -131,6 +134,8 @@ func TestLoadInvalid(t *testing.T) {
 		{"PORTFOLIO_LOG_FORMAT", "xml"},
 		{"PORTFOLIO_TRUSTED_PROXIES", "127.0.0.1,banana"},
 		{"PORTFOLIO_HSTS", "maybe"},
+		{"PORTFOLIO_HERO", "spaceship"},
+		{"PORTFOLIO_ASK", "sometimes"},
 		{"DATABASE_URL", "mysql://u:p@h/db"},
 		{"DATABASE_URL", "postgres:///nohost"},
 		{"ADMIN_USERNAME", "has space"},
@@ -185,5 +190,15 @@ func TestInvalidDatabaseURLNotEchoed(t *testing.T) {
 	_, err := Load(envFunc(map[string]string{"DATABASE_URL": "mysql://u:topsecret@h/db"}))
 	if err == nil || strings.Contains(err.Error(), "topsecret") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestLoadPresentation(t *testing.T) {
+	cfg, err := Load(envFunc(map[string]string{"PORTFOLIO_HERO": "Request", "PORTFOLIO_ASK": "false"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Hero != "request" || cfg.Ask {
+		t.Errorf("hero=%q ask=%v", cfg.Hero, cfg.Ask)
 	}
 }

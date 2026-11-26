@@ -29,13 +29,15 @@ const (
 
 // Options are the dependencies of the server.
 type Options struct {
-	Config  config.Config
-	Logger  *slog.Logger
-	Static  fs.FS                 // embedded frontend build
-	Health  *handlers.Health      // readiness flag, flipped by the caller on shutdown
-	Saver   handlers.MessageSaver // nil disables the contact form
-	Limiter *contact.Limiter      // contact rate limiter; caller runs its janitor
-	Admin   *admin.Handler        // nil disables /admin
+	Config       config.Config
+	Logger       *slog.Logger
+	Static       fs.FS                 // embedded frontend build
+	Health       *handlers.Health      // readiness flag, flipped by the caller on shutdown
+	Saver        handlers.MessageSaver // nil disables the contact form
+	Limiter      *contact.Limiter      // contact rate limiter; caller runs its janitor
+	Admin        *admin.Handler        // nil disables /admin
+	DB           handlers.Pinger       // optional; adds a database stage to /api/trace
+	TraceLimiter *contact.Limiter      // optional; defaults to handlers.NewTraceLimiter
 }
 
 var releaseMode sync.Once
@@ -75,6 +77,17 @@ func NewEngine(o Options) (*gin.Engine, error) {
 	api := r.Group("/api")
 	api.GET("/contact", c.Status)
 	api.POST("/contact", middleware.BodyLimit(handlers.MaxContactBody), c.Submit)
+
+	tl := o.TraceLimiter
+	if tl == nil {
+		tl = handlers.NewTraceLimiter()
+	}
+	trace := &handlers.Trace{DB: o.DB, Limiter: tl}
+	api.GET("/trace", trace.Get)
+
+	siteJS := handlers.SiteConfigScript(handlers.SiteConfig{Hero: o.Config.Hero, Ask: o.Config.Ask})
+	r.GET("/site-config.js", siteJS)
+	r.HEAD("/site-config.js", siteJS)
 
 	if o.Admin != nil {
 		o.Admin.Register(r)

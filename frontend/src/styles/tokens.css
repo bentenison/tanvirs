@@ -1,47 +1,50 @@
 /*
- * Semantic design tokens. Light ("Paper") and dark ("Graphite") are tuned
- * independently, dark is not an inversion of light.
+ * Semantic design tokens: "Go Blue". Clean white (light) and deep navy
+ * (dark), with Go's own cyan-blue as the single accent. Colours keep their
+ * usual meaning everywhere: blue = links, actions and the live/Go parts;
+ * green = success; amber = busy, load or strain; red = errors.
+ * Every text colour meets WCAG AA (4.5:1) on its backgrounds.
  */
 :root {
   color-scheme: light;
 
-  --bg: #f2efe7;
-  --bg-deep: #e9e5da;
-  --surface: #faf8f3;
+  --bg: #ffffff;
+  --bg-deep: #f1f5f9;
+  --surface: #f5f7fa;
   --surface-raised: #ffffff;
-  --surface-sunken: #ebe7dd;
-  --text: #17160f;
-  --text-muted: #5d5a50;
-  --text-faint: #6f6b60;
-  --border: #dad5c8;
-  --border-strong: #b9b3a3;
+  --surface-sunken: #eef2f6;
+  --text: #0f172a;
+  --text-muted: #475569;
+  --text-faint: #64748b;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
 
-  /* Chlorophyll: the computational accent. Fill for shapes, ink for text. */
-  --accent: #b8e62e;
-  --accent-ink: #3d6a00;
-  --accent-soft: #e4f3b8;
-  --on-accent: #17160f;
+  /* Go blue: fill for shapes and buttons, ink for text and links. */
+  --accent: #00add8;
+  --accent-ink: #006e8a;
+  --accent-soft: #e0f5fb;
+  --on-accent: #04131c;
 
-  /* Coral: reserved for tension, load and failure. */
-  --tension: #d9482b;
-  --tension-soft: #f7d9cf;
+  /* Amber: busy, load and strain (never errors). */
+  --tension: #b45309;
+  --tension-soft: #fef3c7;
 
-  --interactive: #17160f;
-  --interactive-hover: #3d6a00;
-  --focus-ring: #17160f;
-  --focus-halo: #b8e62e;
+  --interactive: #0f172a;
+  --interactive-hover: #006e8a;
+  --focus-ring: #0f172a;
+  --focus-halo: #7dd3ea;
 
-  --success: #2f7d4a;
-  --error: #b3261e;
+  --success: #15803d;
+  --error: #b91c1c;
 
   /* Organism shading (read by the renderer). */
-  --organism-body: #1d1c16;
-  --organism-rim: #4a483d;
-  --organism-light: #8d8a7c;
-  --organism-dot: #cfc9b9;
+  --organism-body: #13203a;
+  --organism-rim: #33415c;
+  --organism-light: #94a3b8;
+  --organism-dot: #cbd5e1;
 
-  --shadow-raised: 0 1px 0 rgb(23 22 15 / 0.04), 0 12px 32px -12px rgb(23 22 15 / 0.18);
-  --shadow-float: 0 2px 0 rgb(23 22 15 / 0.04), 0 30px 60px -20px rgb(23 22 15 / 0.28);
+  --shadow-raised: 0 1px 0 rgb(15 23 42 / 0.04), 0 12px 32px -12px rgb(15 23 42 / 0.16);
+  --shadow-float: 0 2px 0 rgb(15 23 42 / 0.04), 0 30px 60px -20px rgb(15 23 42 / 0.26);
 
   --radius-xs: 3px;
   --radius-sm: 6px;
@@ -55,37 +58,37 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #121311;
-  --bg-deep: #0d0e0c;
-  --surface: #1a1c19;
-  --surface-raised: #232622;
-  --surface-sunken: #161815;
-  --text: #eceae2;
-  --text-muted: #a3a196;
-  --text-faint: #8f8d83;
-  --border: #30332e;
-  --border-strong: #4a4e47;
+  --bg: #0b1220;
+  --bg-deep: #080e19;
+  --surface: #111a2c;
+  --surface-raised: #16213a;
+  --surface-sunken: #0e1626;
+  --text: #e6edf6;
+  --text-muted: #94a3b8;
+  --text-faint: #7c8ba1;
+  --border: #1f2a40;
+  --border-strong: #2e3b55;
 
-  --accent: #c4f03c;
-  --accent-ink: #c4f03c;
-  --accent-soft: #2a3313;
-  --on-accent: #121311;
+  --accent: #00add8;
+  --accent-ink: #3cc8eb;
+  --accent-soft: #0b3445;
+  --on-accent: #04131c;
 
-  --tension: #ff7a5c;
-  --tension-soft: #3a211b;
+  --tension: #fbbf24;
+  --tension-soft: #3a2a0b;
 
-  --interactive: #eceae2;
-  --interactive-hover: #c4f03c;
-  --focus-ring: #eceae2;
-  --focus-halo: #6f8f1a;
+  --interactive: #e6edf6;
+  --interactive-hover: #3cc8eb;
+  --focus-ring: #e6edf6;
+  --focus-halo: #0e7490;
 
-  --success: #6fd08c;
-  --error: #ff8a80;
+  --success: #4ade80;
+  --error: #f87171;
 
-  --organism-body: #22251f;
-  --organism-rim: #3e4239;
-  --organism-light: #9ea392;
-  --organism-dot: #34372f;
+  --organism-body: #1a2742;
+  --organism-rim: #3a4c6e;
+  --organism-light: #a9c1e0;
+  --organism-dot: #1e2b44;
 
   --shadow-raised: 0 1px 0 rgb(0 0 0 / 0.3), 0 12px 32px -12px rgb(0 0 0 / 0.6);
   --shadow-float: 0 2px 0 rgb(0 0 0 / 0.3), 0 30px 60px -20px rgb(0 0 0 / 0.75);
@@ -95,37 +98,37 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --bg: #121311;
-    --bg-deep: #0d0e0c;
-    --surface: #1a1c19;
-    --surface-raised: #232622;
-    --surface-sunken: #161815;
-    --text: #eceae2;
-    --text-muted: #a3a196;
-    --text-faint: #8f8d83;
-    --border: #30332e;
-    --border-strong: #4a4e47;
+    --bg: #0b1220;
+    --bg-deep: #080e19;
+    --surface: #111a2c;
+    --surface-raised: #16213a;
+    --surface-sunken: #0e1626;
+    --text: #e6edf6;
+    --text-muted: #94a3b8;
+    --text-faint: #7c8ba1;
+    --border: #1f2a40;
+    --border-strong: #2e3b55;
 
-    --accent: #c4f03c;
-    --accent-ink: #c4f03c;
-    --accent-soft: #2a3313;
-    --on-accent: #121311;
+    --accent: #00add8;
+    --accent-ink: #3cc8eb;
+    --accent-soft: #0b3445;
+    --on-accent: #04131c;
 
-    --tension: #ff7a5c;
-    --tension-soft: #3a211b;
+    --tension: #fbbf24;
+    --tension-soft: #3a2a0b;
 
-    --interactive: #eceae2;
-    --interactive-hover: #c4f03c;
-    --focus-ring: #eceae2;
-    --focus-halo: #6f8f1a;
+    --interactive: #e6edf6;
+    --interactive-hover: #3cc8eb;
+    --focus-ring: #e6edf6;
+    --focus-halo: #0e7490;
 
-    --success: #6fd08c;
-    --error: #ff8a80;
+    --success: #4ade80;
+    --error: #f87171;
 
-    --organism-body: #22251f;
-    --organism-rim: #3e4239;
-    --organism-light: #9ea392;
-    --organism-dot: #34372f;
+    --organism-body: #1a2742;
+    --organism-rim: #3a4c6e;
+    --organism-light: #a9c1e0;
+    --organism-dot: #1e2b44;
 
     --shadow-raised: 0 1px 0 rgb(0 0 0 / 0.3), 0 12px 32px -12px rgb(0 0 0 / 0.6);
     --shadow-float: 0 2px 0 rgb(0 0 0 / 0.3), 0 30px 60px -20px rgb(0 0 0 / 0.75);

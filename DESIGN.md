@@ -225,3 +225,12 @@ Mockups use restrained perspective (maximum tilt of 6°), layered windows, and *
 - **Frontend capability:** the spring-tuner demo was replaced by a UI-states demo (ready, loading, empty and error states, with radius and density tokens), which reflects Vue, Tailwind, shadcn-vue and UX design work.
 - **Content:** no em dashes anywhere in the site copy. The site never presents itself as one of the projects. TypeScript and WebAssembly are not listed as skills.
 - **Performance:** a single stylesheet (prevents layout shift on prerendered routes) and lazy hydration of below-the-fold sections. See PERFORMANCE.md.
+
+## Hero options (2026-11-25)
+
+The landing centrepiece is chosen on the server with `PORTFOLIO_HERO`, delivered by `/site-config.js` before first paint, so switching needs only a restart:
+
+- **`request`: "The Request".** The visitor's own page request, traced through the real stack. The browser's Navigation Timing and the Go server's `Server-Timing` header give DNS, connect and TLS, network plus proxy, Go middleware and handler (the embedded, brotli-compressed page), download and render. "Send a new request" calls `/api/trace`, which also makes a real PostgreSQL round trip when a database is configured. Packet travel is log-scaled so it stays watchable, while the labels show real times. Unmeasured stages say why (reused connection, browser cache, not needed for this page) instead of showing numbers.
+- **`organism` (default):** the original engineering organism, unchanged. It only starts WebGL when selected.
+
+**Ask my portfolio (`PORTFOLIO_ASK`):** a section under the hero that retrieves from the site's own content in the browser, using BM25 with a synonym table. It shows the terms, ranked sources with highlighted matches, and an extractive answer citing them. No model and no server call; it says so on the page.

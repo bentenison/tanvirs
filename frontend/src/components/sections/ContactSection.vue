@@ -1,7 +1,7 @@
 <template>
   <section id="contact" ref="root" class="contact" aria-labelledby="contact-title">
-    <div class="contact__organism" aria-hidden="true">
-      <EngineeringOrganism :annotated="false" :interactive="false" :opening="false" />
+    <div class="contact__organism only-organism" aria-hidden="true">
+      <EngineeringOrganism :annotated="false" :interactive="false" :opening="false" :enabled="organismOn" />
     </div>
     <div class="shell contact__inner">
       <p class="margin-note" data-reveal><b>§07</b><span>Contact</span></p>
@@ -61,6 +61,7 @@ import InteractiveLink from '@/components/ui/InteractiveLink.vue'
 import { profile, availabilityText } from '@/config/profile'
 import { contactEnabled } from '@/services/contact'
 import { reveal } from '@/engine/animation/reveal'
+import { siteRuntime } from '@/services/site'
 
 /**
  * Closing specimen: the organism returns behind the contact options. A
@@ -74,6 +75,8 @@ export default defineComponent({
     return {
       links: profile.links,
       availability: availabilityText(),
+      // The background organism belongs to the organism hero; off in request mode.
+      organismOn: false,
       formEnabled: false,
       checked: false,
       copied: false,
@@ -91,6 +94,7 @@ export default defineComponent({
     },
   },
   async mounted() {
+    this.organismOn = siteRuntime().hero === 'organism'
     this.stop = reveal(this.$refs.root as HTMLElement)
     this.abort = new AbortController()
     this.formEnabled = await contactEnabled(this.abort.signal)

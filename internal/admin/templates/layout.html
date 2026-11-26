@@ -7,8 +7,8 @@
 <title>{{.Title}} · Admin</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
-:root{--bg:#f2efe7;--surface:#fff;--sunken:#ebe7dd;--text:#17160f;--muted:#5d5a50;--border:#dad5c8;--accent:#3d6a00;--accent-fill:#b8e62e;--danger:#b3261e;--danger-soft:#fbe9e7;--ok:#2f7d4a;color-scheme:light dark}
-@media (prefers-color-scheme:dark){:root{--bg:#121311;--surface:#1a1c19;--sunken:#232622;--text:#eceae2;--muted:#a3a196;--border:#30332e;--accent:#c4f03c;--accent-fill:#c4f03c;--danger:#ff8a80;--danger-soft:#3a211b;--ok:#6fd08c}}
+:root{--bg:#f5f7fa;--surface:#fff;--sunken:#eef2f6;--text:#0f172a;--muted:#475569;--border:#e2e8f0;--accent:#006e8a;--accent-fill:#00add8;--danger:#b91c1c;--danger-soft:#fdecec;--ok:#15803d;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#0b1220;--surface:#111a2c;--sunken:#16213a;--text:#e6edf6;--muted:#94a3b8;--border:#1f2a40;--accent:#3cc8eb;--accent-fill:#00add8;--danger:#f87171;--danger-soft:#3a1717;--ok:#4ade80}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 a{color:inherit}
@@ -23,7 +23,7 @@ h1{font-size:26px;margin:0 0 18px;letter-spacing:-.01em}
 .btn:hover{border-color:var(--text)}
 .btn.primary{background:var(--text);color:var(--bg);border-color:var(--text)}
 .btn.danger{color:var(--danger);border-color:var(--danger)}
-.btn[aria-pressed=true]{background:var(--accent-fill);border-color:var(--accent-fill);color:#121311}
+.btn[aria-pressed=true]{background:var(--accent-fill);border-color:var(--accent-fill);color:#04131c}
 :focus-visible{outline:2px solid var(--text);outline-offset:2px}
 input,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}
 textarea{min-height:110px;resize:vertical}
@@ -32,7 +32,7 @@ label{display:block;font-size:13px;font-weight:600;margin:0 0 6px}
 .error{padding:10px 14px;border-radius:8px;background:var(--danger-soft);color:var(--danger);margin:0 0 16px}
 .muted{color:var(--muted)}
 .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--border);white-space:nowrap}
-.badge.new{background:var(--accent-fill);border-color:var(--accent-fill);color:#121311}
+.badge.new{background:var(--accent-fill);border-color:var(--accent-fill);color:#04131c}
 .badge.replied{color:var(--ok);border-color:var(--ok)}
 .badge.archived{color:var(--muted)}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}

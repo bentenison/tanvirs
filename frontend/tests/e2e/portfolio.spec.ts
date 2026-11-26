@@ -2,6 +2,16 @@ import { test, expect, type Page } from '@playwright/test'
 
 const isMobile = (page: Page) => (page.viewportSize()?.width ?? 1440) < 900
 
+/** Serve a site-config.js exactly like the Go server does for PORTFOLIO_HERO / PORTFOLIO_ASK. */
+async function useSite(page: Page, hero: 'request' | 'organism', ask = true) {
+  await page.route('**/site-config.js', (route) =>
+    route.fulfill({
+      contentType: 'text/javascript',
+      body: `(function(){var c={"hero":"${hero}","ask":${ask}};window.__SITE__=c;var r=document.documentElement;r.setAttribute('data-hero',c.hero);r.setAttribute('data-ask','${ask ? 'on' : 'off'}')})();`,
+    }),
+  )
+}
+
 function trackErrors(page: Page): string[] {
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
@@ -28,6 +38,9 @@ test.describe('home', () => {
   })
 
   test('the hero organism becomes live and survives rapid interaction', async ({ page }) => {
+    // WebGL is software-rendered in headless runs; rapid drags are slow under parallel load.
+    test.slow()
+    await useSite(page, 'organism')
     const errors = trackErrors(page)
     await page.goto('/')
     const organism = page.locator('.stage .organism')
@@ -46,6 +59,7 @@ test.describe('home', () => {
   })
 
   test('falls back without WebGL', async ({ page }) => {
+    await useSite(page, 'organism')
     await page.addInitScript(() => {
       const orig = HTMLCanvasElement.prototype.getContext
       // @ts-expect-error test override
@@ -62,6 +76,7 @@ test.describe('home', () => {
   })
 
   test('domain index is keyboard operable and reveals details', async ({ page }) => {
+    await useSite(page, 'organism')
     await page.goto('/')
     const data = page.getByRole('button', { name: 'Data', exact: true })
     await data.focus()
@@ -84,6 +99,94 @@ test.describe('home', () => {
     await expect(skip).toBeFocused()
     await page.keyboard.press('Enter')
     await expect(page.locator('#main')).toBeFocused()
+  })
+})
+
+test.describe('request hero', () => {
+  test('traces the real page request', async ({ page }) => {
+    const errors = trackErrors(page)
+    await useSite(page, 'request')
+    await page.goto('/')
+    await expect(page.locator('html')).toHaveAttribute('data-hero', 'request')
+    const trace = page.locator('.rt')
+    await expect(trace).toBeVisible()
+    await expect(page.locator('.hv--organism')).toBeHidden()
+    // The request id shown is the one the Go server stamped on this response.
+    await expect(trace.locator('.rt__rid')).not.toContainText('measuring', { timeout: 10_000 })
+    await expect(trace.locator('.rt__note')).toContainText(/Traced: .* end to end/, { timeout: 20_000 })
+    await expect(page.locator('.stage .organism.is-live')).toHaveCount(0)
+    expect(errors).toEqual([])
+  })
+
+  test('sends a real new request through the server', async ({ page }) => {
+    await useSite(page, 'request')
+    await page.goto('/')
+    const trace = page.locator('.rt')
+    await expect(trace.locator('.rt__note')).toContainText('Traced', { timeout: 20_000 })
+    const before = await trace.locator('.rt__rid').textContent()
+    const [res] = await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/trace') && r.status() === 200),
+      trace.getByRole('button', { name: 'Send a new request' }).click(),
+    ])
+    expect((await res.json()).request_id).toBeTruthy()
+    await expect(trace.locator('.rt__title')).toContainText('fresh request')
+    await expect(trace.locator('.rt__rid')).not.toHaveText(before ?? '')
+    await expect(trace.locator('.rt__note')).toContainText('Traced', { timeout: 20_000 })
+  })
+
+  test('organism mode hides the trace and runs the organism', async ({ page }) => {
+    await useSite(page, 'organism')
+    await page.goto('/')
+    await expect(page.locator('.hv--request')).toBeHidden()
+    await expect(page.locator('.stage .organism')).toBeVisible()
+  })
+})
+
+test.describe('hero switch', () => {
+  const organismOnly = ['.hv--organism', '.hero__index', '.eco__step.only-organism', '.contact__organism']
+  const requestOnly = ['.hv--request', '.eco__step.only-request']
+
+  async function visible(page: Page, sel: string) {
+    return page.locator(sel).evaluateAll((els) => els.some((el) => getComputedStyle(el).display !== 'none' && (el as HTMLElement).offsetParent !== null))
+  }
+
+  for (const hero of ['request', 'organism'] as const) {
+    test(`${hero} mode shows only its own content`, async ({ page }) => {
+      await useSite(page, hero)
+      await page.goto('/')
+      await page.waitForTimeout(500)
+      const [show, hide] = hero === 'request' ? [requestOnly, organismOnly] : [organismOnly, requestOnly]
+      for (const sel of show) expect(await visible(page, sel), `${sel} should be visible in ${hero} mode`).toBe(true)
+      for (const sel of hide) expect(await visible(page, sel), `${sel} should be hidden in ${hero} mode`).toBe(false)
+      const text = await page.locator('main').innerText()
+      if (hero === 'request') {
+        expect(text).not.toMatch(/engineering organism|Go at the centre|Eight domains/i)
+        expect(text).toMatch(/This page is the demo/i)
+      } else {
+        expect(text).not.toMatch(/This page is the demo|Inside the Go binary|Send a new request/i)
+        expect(text).toMatch(/Go at the centre/i)
+      }
+      if (hero === 'request') await expect(page.locator('.organism.is-live')).toHaveCount(0)
+    })
+  }
+})
+
+test.describe('ask my portfolio', () => {
+  test('answers a question with cited sources', async ({ page }) => {
+    await page.goto('/')
+    const ask = page.locator('#ask')
+    await ask.scrollIntoViewIfNeeded()
+    await ask.getByRole('searchbox', { name: 'Your question' }).fill('What do you do with PostgreSQL?')
+    await ask.getByRole('button', { name: 'Ask', exact: true }).click()
+    await expect(ask.locator('.ask__answer-text')).toContainText(/PostgreSQL/i, { timeout: 5000 })
+    await expect(ask.locator('.ask__cite').first()).toBeVisible()
+    await expect(ask.getByRole('list', { name: 'Sources' }).locator('li').first()).toBeVisible()
+  })
+
+  test('is hidden when the server turns it off', async ({ page }) => {
+    await useSite(page, 'request', false)
+    await page.goto('/')
+    await expect(page.locator('#ask')).toBeHidden()
   })
 })
 
@@ -162,6 +265,7 @@ test.describe('preferences', () => {
   })
 
   test('minimal motion shows the static organism and keeps content', async ({ page }) => {
+    await useSite(page, 'organism')
     await page.addInitScript(() => localStorage.setItem('portfolio:motion', 'minimal'))
     await page.goto('/')
     await expect(page.locator('html')).toHaveAttribute('data-motion', 'minimal')

@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bentenison/portfolio/internal/middleware"
 )
 
 // contentTypes overrides mime.TypeByExtension so responses do not depend on
@@ -141,6 +143,7 @@ func cachePolicy(name string) string {
 
 // ServeHTTP implements http.Handler.
 func (s *Static) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	entered := time.Now()
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
 		plain(w, r, http.StatusMethodNotAllowed, "method not allowed")
@@ -160,7 +163,7 @@ func (s *Static) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			notFound(w, r)
 			return
 		}
-		s.serve(w, r, f, http.StatusOK)
+		s.serve(w, r, f, http.StatusOK, entered)
 		return
 	}
 
@@ -175,12 +178,12 @@ func (s *Static) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		index = name + "/index.html"
 	}
 	if f, ok := s.files[index]; ok {
-		s.serve(w, r, f, http.StatusOK)
+		s.serve(w, r, f, http.StatusOK, entered)
 		return
 	}
 	for _, fallback := range []string{"404.html", "index.html"} {
 		if f, ok := s.files[fallback]; ok {
-			s.serve(w, r, f, http.StatusNotFound)
+			s.serve(w, r, f, http.StatusNotFound, entered)
 			return
 		}
 	}
@@ -205,7 +208,7 @@ func cleanName(p string) (string, bool) {
 	return name, fs.ValidPath(name)
 }
 
-func (s *Static) serve(w http.ResponseWriter, r *http.Request, f *file, status int) {
+func (s *Static) serve(w http.ResponseWriter, r *http.Request, f *file, status int, entered time.Time) {
 	h := w.Header()
 	rep := &f.identity
 	if f.br != nil || f.gz != nil {
@@ -221,6 +224,11 @@ func (s *Static) serve(w http.ResponseWriter, r *http.Request, f *file, status i
 	}
 	h.Set("Content-Type", f.contentType) // set before ServeContent so it never sniffs
 	h.Set("Cache-Control", f.cache)
+	if strings.HasPrefix(f.contentType, "text/html") {
+		// Lets the page show the visitor how this very response was produced.
+		h.Set("Server-Timing", middleware.ServerTiming(r.Context(), entered,
+			middleware.TimingMetric{Name: "embed", Desc: "Embedded file " + encodingLabel(h.Get("Content-Encoding"))}))
+	}
 
 	if status != http.StatusOK {
 		// Error pages are not conditional and do not support ranges.
@@ -249,6 +257,16 @@ func (s *Static) serve(w http.ResponseWriter, r *http.Request, f *file, status i
 // negotiate picks "br", "gzip" or "" (identity) from an Accept-Encoding
 // header, considering only encodings that are available. Higher q wins; br
 // wins ties. q=0 refuses an encoding; "*" covers unlisted encodings.
+func encodingLabel(enc string) string {
+	switch enc {
+	case "br":
+		return "(brotli)"
+	case "gzip":
+		return "(gzip)"
+	}
+	return "(uncompressed)"
+}
+
 func negotiate(header string, haveBr, haveGz bool) string {
 	if header == "" {
 		return ""

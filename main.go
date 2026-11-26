@@ -77,7 +77,7 @@ func run() error {
 		}
 		go adm.Limiter().Run(janitorCtx, time.Minute)
 		go pruneSessions(janitorCtx, db, log)
-		opts.Saver, opts.Admin = db, adm
+		opts.Saver, opts.Admin, opts.DB = db, adm, db
 	}
 	health := opts.Health
 	srv, err := server.New(opts)

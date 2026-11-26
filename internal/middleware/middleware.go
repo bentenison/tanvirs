@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -29,6 +30,8 @@ const ContentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 
 
 type ctxKey struct{}
 
+type startKey struct{}
+
 var validRequestID = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
 
 // RequestIDFromContext returns the request ID stored by RequestID, or "".
@@ -37,16 +40,56 @@ func RequestIDFromContext(ctx context.Context) string {
 	return id
 }
 
+// RequestStart returns when RequestID first saw the request, or the zero time.
+func RequestStart(ctx context.Context) time.Time {
+	t, _ := ctx.Value(startKey{}).(time.Time)
+	return t
+}
+
+// TimingMetric is one extra entry for a Server-Timing header.
+type TimingMetric struct {
+	Name, Desc string
+	Dur        time.Duration
+}
+
+// ServerTiming formats a standard Server-Timing header for the current
+// request: time spent in middleware before the handler ("mw"), in the
+// handler so far ("app"), any extra metrics, the total, and the request
+// ID ("rid"). Browsers expose it to the page via the Performance API.
+func ServerTiming(ctx context.Context, handlerStart time.Time, extra ...TimingMetric) string {
+	start := RequestStart(ctx)
+	now := time.Now()
+	if start.IsZero() {
+		start = handlerStart
+	}
+	ms := func(d time.Duration) string { return fmt.Sprintf("%.3f", float64(d.Microseconds())/1000) }
+	parts := []string{
+		`mw;dur=` + ms(handlerStart.Sub(start)) + `;desc="Middleware"`,
+		`app;dur=` + ms(now.Sub(handlerStart)) + `;desc="Handler"`,
+	}
+	for _, m := range extra {
+		parts = append(parts, m.Name+`;dur=`+ms(m.Dur)+`;desc="`+m.Desc+`"`)
+	}
+	parts = append(parts, `total;dur=`+ms(now.Sub(start))+`;desc="Go server"`)
+	if id := RequestIDFromContext(ctx); id != "" {
+		parts = append(parts, `rid;desc="`+id+`"`)
+	}
+	return strings.Join(parts, ", ")
+}
+
 // RequestID accepts a well-formed incoming X-Request-ID or generates a new
-// random one, echoes it in the response and stores it in the request context.
+// random one, echoes it in the response and stores it in the request context
+// together with the time the request arrived.
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		start := time.Now()
 		id := c.GetHeader(HeaderRequestID)
 		if !validRequestID.MatchString(id) {
 			id = newID()
 		}
 		c.Header(HeaderRequestID, id)
-		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxKey{}, id))
+		ctx := context.WithValue(c.Request.Context(), ctxKey{}, id)
+		c.Request = c.Request.WithContext(context.WithValue(ctx, startKey{}, start))
 		c.Next()
 	}
 }

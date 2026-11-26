@@ -95,6 +95,8 @@ go test -race ./...
 | `PORTFOLIO_LOG_FORMAT` | `json` | `json` or `text` |
 | `PORTFOLIO_TRUSTED_PROXIES` | `127.0.0.1,::1` | IPs/CIDRs allowed to set `X-Forwarded-For`; `none` to trust nobody |
 | `PORTFOLIO_HSTS` | `false` | Send HSTS and `upgrade-insecure-requests`. Enable only when the site is HTTPS-only |
+| `PORTFOLIO_HERO` | `organism` | Landing-page centrepiece: `organism` or `request` (the visitor's own request traced through the stack). Switch and restart; no rebuild needed |
+| `PORTFOLIO_ASK` | `true` | Show the "Ask my portfolio" section |
 | `DATABASE_URL` | | PostgreSQL connection string. Enables the contact form and `/admin`; never logged |
 | `ADMIN_USERNAME` | `admin` | Login for `/admin` |
 | `ADMIN_PASSWORD` | | Admin password (12+ characters), seeded at startup as a bcrypt hash; changing it signs out all sessions |

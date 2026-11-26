@@ -1,9 +1,19 @@
 <template>
   <div class="stage" :class="{ 'has-selection': !!selected }">
-    <div class="stage__organism" aria-label="Interactive engineering organism" role="group">
-      <EngineeringOrganism :mode="mode" :selected="selected" @select="select" />
-      <div class="stage__panel">
-        <DomainPanel :id="panelId" :selected="selected" @close="select(null)" />
+    <!--
+      Both centrepieces are server-rendered; <html data-hero> (set by the
+      server's /site-config.js before paint) decides which one is visible,
+      and only that one starts measuring or rendering after mount.
+    -->
+    <div class="stage__organism">
+      <div class="hv hv--organism" aria-label="Interactive engineering organism" role="group">
+        <EngineeringOrganism :mode="mode" :selected="selected" :enabled="hero === 'organism'" @select="select" />
+        <div class="stage__panel">
+          <DomainPanel :id="panelId" :selected="selected" @close="select(null)" />
+        </div>
+      </div>
+      <div class="hv hv--request">
+        <RequestTrace :enabled="hero === 'request'" :focus="requestFocus" />
       </div>
     </div>
 
@@ -26,16 +36,30 @@
           <MagneticButton to="/#about" variant="outline" size="lg">About me</MagneticButton>
           <MagneticButton to="/#contact" variant="quiet" size="lg" icon="arrow-right">Get in touch</MagneticButton>
         </div>
-        <DomainIndex class="hero__index" :selected="selected" :panel-id="panelId" :active-domains="activeDomains" @select="select" />
+        <DomainIndex class="hero__index only-organism" :selected="selected" :panel-id="panelId" :active-domains="activeDomains" @select="select" />
       </section>
 
       <section class="eco" aria-labelledby="eco-title">
         <h2 id="eco-title" class="sr-only">How the ecosystem fits together</h2>
         <article
+          v-for="(step, i) in requestSteps"
+          :key="step.key"
+          ref="steps"
+          class="eco__step only-request"
+          data-set="request"
+          :data-step="i"
+          :class="{ 'is-current': currentRequest === i }"
+        >
+          <p class="margin-note"><b>§02.{{ i + 1 }}</b><span>{{ step.kicker }}</span></p>
+          <h3 class="eco__title display" v-html="step.title" />
+          <p class="eco__body">{{ step.body }}</p>
+        </article>
+        <article
           v-for="(step, i) in steps"
           :key="step.key"
           ref="steps"
-          class="eco__step"
+          class="eco__step only-organism"
+          data-set="organism"
           :data-step="i"
           :class="{ 'is-current': current === i }"
         >
@@ -68,12 +92,15 @@ import { defineComponent, markRaw } from 'vue'
 import EngineeringOrganism, { type Selection } from '@/components/organism/EngineeringOrganism.vue'
 import DomainIndex from '@/components/organism/DomainIndex.vue'
 import DomainPanel from '@/components/organism/DomainPanel.vue'
+import RequestTrace from '@/components/request/RequestTrace.vue'
 import MagneticButton from '@/components/ui/MagneticButton.vue'
 import { profile, availabilityText } from '@/config/profile'
 import { projects } from '@/config/projects'
 import { domainById } from '@/config/technologies'
 import type { DomainId } from '@/config/types'
 import type { OrganismMode } from '@/engine/rendering/organism/model'
+import type { StageGroup } from '@/engine/trace/trace'
+import { siteRuntime, type HeroKind } from '@/services/site'
 
 /**
  * §01 Hero + §02 Ecosystem share one stage: the organism stays pinned
@@ -82,14 +109,40 @@ import type { OrganismMode } from '@/engine/rendering/organism/model'
  */
 export default defineComponent({
   name: 'HeroStage',
-  components: { EngineeringOrganism, DomainIndex, DomainPanel, MagneticButton },
+  components: { EngineeringOrganism, DomainIndex, DomainPanel, MagneticButton, RequestTrace },
   data() {
     return {
       profile,
       projects,
       availability: availabilityText(),
       selected: null as Selection,
+      // Unknown until mount so server and client render the same markup.
+      hero: null as HeroKind | null,
       current: -1,
+      currentRequest: -1,
+      requestSteps: [
+        {
+          key: 'out',
+          kicker: 'Your request',
+          title: 'This page is <em>the demo</em>.',
+          body: 'The panel traces the real request that just loaded this page: the network hops your browser measured, then the Go binary that answered it. Nothing is staged.',
+          focus: 'network',
+        },
+        {
+          key: 'server',
+          kicker: 'Inside the Go binary',
+          title: 'Fractions of a <em>millisecond</em>.',
+          body: 'Middleware stamps a request ID and security headers, the router finds this page already embedded in the binary, and it goes back pre-compressed with brotli. Most of the time you see is the network, not the server.',
+          focus: 'server',
+        },
+        {
+          key: 'again',
+          kicker: 'Try it',
+          title: 'Send one <em>yourself</em>.',
+          body: 'A fresh request takes the same path. When the database is connected it also makes a real round trip to PostgreSQL, so you can watch every layer answer.',
+          focus: 'data',
+        },
+      ],
       productSlug: projects[0].slug,
       panelId: 'organism-panel',
       io: null as IntersectionObserver | null,
@@ -116,6 +169,10 @@ export default defineComponent({
     }
   },
   computed: {
+    requestFocus(): StageGroup | null {
+      const step = this.requestSteps[this.currentRequest]
+      return step ? (step.focus as StageGroup) : null
+    },
     mode(): OrganismMode {
       if (this.current === 1) return { kind: 'domains' }
       if (this.current === 2) {
@@ -134,14 +191,17 @@ export default defineComponent({
     },
   },
   mounted() {
+    this.hero = siteRuntime().hero
     const els = this.$refs.steps as HTMLElement[]
     this.io = markRaw(
       new IntersectionObserver(
         (entries) => {
           for (const e of entries) {
-            const i = Number((e.target as HTMLElement).dataset.step)
-            if (e.isIntersecting) this.current = i
-            else if (this.current === i && e.boundingClientRect.top > 0) this.current = i - 1
+            const el = e.target as HTMLElement
+            const i = Number(el.dataset.step)
+            const key = el.dataset.set === 'request' ? 'currentRequest' : 'current'
+            if (e.isIntersecting) this[key] = i
+            else if (this[key] === i && e.boundingClientRect.top > 0) this[key] = i - 1
           }
         },
         { rootMargin: '-45% 0px -45% 0px' },
@@ -161,6 +221,15 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.hv {
+  position: absolute;
+  inset: 0;
+}
+.hv--request {
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--nav-h) + 1rem) var(--gutter) 2rem;
+}
 .stage {
   position: relative;
   display: grid;
@@ -365,6 +434,36 @@ export default defineComponent({
   }
   .stage__organism {
     grid-column: 7 / span 6;
+  }
+}
+</style>
+
+<style>
+/* Variant switch: the server sets <html data-hero> before first paint.
+   Unscoped on purpose: these selectors hang off the root element, and the
+   :root prefix makes them outrank component rules such as .eco__step's
+   display:flex, so hidden content stays hidden. Organism is the default. */
+:root:not([data-hero='request']) .only-request,
+:root:not([data-hero='request']) .hv--request,
+:root[data-hero='request'] .only-organism,
+:root[data-hero='request'] .hv--organism {
+  display: none;
+}
+:root[data-hero='request'] .hv--request {
+  display: flex;
+}
+
+/* Request hero on phones: the trace is too tall for the half-screen sticky
+   area, so it sits in the flow above the headline instead. */
+@media (max-width: 899px) {
+  :root[data-hero='request'] .stage__organism {
+    position: relative;
+    height: auto;
+    box-shadow: none;
+  }
+  :root[data-hero='request'] .hv--request {
+    position: relative;
+    padding: calc(1.5rem + env(safe-area-inset-top)) var(--gutter) 0.5rem;
   }
 }
 </style>

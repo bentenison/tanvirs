@@ -101,6 +101,8 @@ export default defineComponent({
     interactive: { type: Boolean, default: true },
     /** Allowed to play the once-per-session opening sequence. */
     opening: { type: Boolean, default: true },
+    /** Start rendering. The hero passes false when another centrepiece is active. */
+    enabled: { type: Boolean, default: true },
   },
   emits: ['select', 'tier'],
   data() {
@@ -119,6 +121,7 @@ export default defineComponent({
       fadeId: `fade-${uid}`,
       maskId: `mask-${uid}`,
       coarse: false,
+      initialised: false,
     }
   },
   computed: {
@@ -139,60 +142,68 @@ export default defineComponent({
     selected(sel: Selection) {
       this.applySelection(sel)
     },
+    enabled(on: boolean) {
+      if (on) this.init()
+    },
   },
-  async mounted() {
+  mounted() {
     this.coarse = matchMedia('(pointer: coarse)').matches
-    const caps = detectCapabilities(preferences.motion)
-    const tier = initialTier(caps)
-    this.tier = tier
-    this.$emit('tier', tier)
-    if (tier === 'static') return
-
-    const { OrganismHost } = await import('@/engine/rendering/organism/host')
-    // Component may have unmounted while the chunk loaded.
-    if (!this.$refs.stage) return
-    const opening = this.opening && shouldPlayOpening()
-    if (opening) markOpeningSeen()
-
-    const host = new OrganismHost({
-      container: this.$refs.stage as HTMLElement,
-      canvas: this.$refs.canvas as HTMLCanvasElement,
-      specs,
-      tier,
-      motion: preferences.motion,
-      layout: layoutFor,
-      opening,
-      onSelect: (i) => this.onSelect(i),
-      onHover: (i) => (this.hover = i),
-      onTierChange: (t) => {
-        this.tier = t
-        this.$emit('tier', t)
-        if (t === 'static') this.teardown()
-      },
-      onFrame: (m) => this.positionLabels(m),
-    })
-    if (this.tier === 'static') {
-      host.dispose()
-      return
-    }
-    this.host = markRaw(host)
-    host.setMode(this.mode)
-    this.applySelection(this.selected)
-    this.live = true
-
-    this.cleanups.push(
-      whenVisible(this.$refs.stage as Element, (v) => this.host?.setVisible(v), '80px'),
-      onPreferencesChange(() => {
-        this.host?.setMotion(preferences.motion)
-        // Wait for the data-theme attribute to apply before reading tokens.
-        requestAnimationFrame(() => this.host?.refreshPalette())
-      }),
-    )
+    if (this.enabled) this.init()
   },
   beforeUnmount() {
     this.teardown()
   },
   methods: {
+    async init() {
+      if (this.initialised) return
+      this.initialised = true
+      const caps = detectCapabilities(preferences.motion)
+      const tier = initialTier(caps)
+      this.tier = tier
+      this.$emit('tier', tier)
+      if (tier === 'static') return
+
+      const { OrganismHost } = await import('@/engine/rendering/organism/host')
+      // Component may have unmounted while the chunk loaded.
+      if (!this.$refs.stage) return
+      const opening = this.opening && shouldPlayOpening()
+      if (opening) markOpeningSeen()
+
+      const host = new OrganismHost({
+        container: this.$refs.stage as HTMLElement,
+        canvas: this.$refs.canvas as HTMLCanvasElement,
+        specs,
+        tier,
+        motion: preferences.motion,
+        layout: layoutFor,
+        opening,
+        onSelect: (i) => this.onSelect(i),
+        onHover: (i) => (this.hover = i),
+        onTierChange: (t) => {
+          this.tier = t
+          this.$emit('tier', t)
+          if (t === 'static') this.teardown()
+        },
+        onFrame: (m) => this.positionLabels(m),
+      })
+      if (this.tier === 'static') {
+        host.dispose()
+        return
+      }
+      this.host = markRaw(host)
+      host.setMode(this.mode)
+      this.applySelection(this.selected)
+      this.live = true
+
+      this.cleanups.push(
+        whenVisible(this.$refs.stage as Element, (v) => this.host?.setVisible(v), '80px'),
+        onPreferencesChange(() => {
+          this.host?.setMotion(preferences.motion)
+          // Wait for the data-theme attribute to apply before reading tokens.
+          requestAnimationFrame(() => this.host?.refreshPalette())
+        }),
+      )
+    },
     teardown() {
       this.cleanups.forEach((c) => c())
       this.cleanups = []

@@ -7,6 +7,9 @@ import type { OrganismRenderer } from './renderer'
 import { WebGLOrganismRenderer } from './webgl'
 import { CanvasOrganismRenderer } from './canvas'
 
+/** Quiet time after the last pointer input before full quality returns. */
+const RESTORE_AFTER_MS = 1500
+
 export interface OrganismHostOptions {
   container: HTMLElement
   canvas: HTMLCanvasElement
@@ -42,6 +45,10 @@ export class OrganismHost {
   private motion: OrganismHostOptions['motion']
   private pressAt: { x: number; y: number; i: number } | null = null
   private openingTimers: number[] = []
+  /** The tier to return to once a slow interaction is over. */
+  private baseTier: QualityTier
+  private lastInput = -Infinity
+  private restoreTimer = 0
 
   constructor(private opts: OrganismHostOptions) {
     this.model = new OrganismModel(opts.specs)
@@ -51,6 +58,7 @@ export class OrganismHost {
     this.monitor = new FrameMonitor(() => this.degrade())
 
     this.createRenderer()
+    this.baseTier = this.tier
     this.measure(true)
 
     if (opts.opening && opts.motion === 'full') this.playOpening()
@@ -107,21 +115,56 @@ export class OrganismHost {
   }
 
   private contextLost(): void {
-    this.degradeTo('light')
+    this.setTier('light', true)
   }
 
   private degrade(): void {
-    this.degradeTo(lowerTier(this.tier))
+    // Slow frames only ever cost resolution, never WebGL itself: the canvas
+    // fallback is both blurrier and CPU-bound, so it would not help.
+    const next = lowerTier(this.tier)
+    if (tierSettings[next].renderer !== 'webgl') return
+    // Slow while idle means the device cannot keep up: keep the lower tier.
+    // Slow while dragging is temporary: sharpen again once input stops.
+    const interacting = performance.now() - this.lastInput < 1000
+    this.setTier(next, !interacting)
+    if (interacting) this.scheduleRestore()
   }
 
-  private degradeTo(tier: QualityTier): void {
+  private noteInput(): void {
+    this.lastInput = performance.now()
+  }
+
+  private scheduleRestore(): void {
+    if (this.restoreTimer) return
+    const check = () => {
+      const quiet = performance.now() - this.lastInput
+      if (quiet < RESTORE_AFTER_MS) {
+        this.restoreTimer = window.setTimeout(check, RESTORE_AFTER_MS - quiet)
+        return
+      }
+      this.restoreTimer = 0
+      this.setTier(this.baseTier)
+    }
+    this.restoreTimer = window.setTimeout(check, RESTORE_AFTER_MS)
+  }
+
+  /** Switch tier; `permanent` also makes it the tier restores return to. */
+  private setTier(tier: QualityTier, permanent = false): void {
+    if (permanent) this.baseTier = tier
     if (tier === this.tier) return
-    const wasWebGL = this.renderer?.kind === 'webgl'
-    this.renderer?.dispose()
-    this.renderer = null
+    const from = this.renderer?.kind
     this.tier = tier
-    if (wasWebGL && tierSettings[tier].renderer !== 'webgl') this.replaceCanvas()
-    this.createRenderer()
+    if (this.renderer && from === tierSettings[tier].renderer) {
+      // Same renderer at another resolution: adjust in place. Recreating it
+      // would dispose, and so lose, the very WebGL context it needs.
+      this.renderer.setRefraction(tierSettings[tier].refraction)
+    } else {
+      this.renderer?.dispose()
+      this.renderer = null
+      // A canvas keeps its first context type forever; switch kinds on a fresh one.
+      if (from) this.replaceCanvas()
+      this.createRenderer()
+    }
     this.measure(false)
     this.monitor.reset()
     this.opts.onTierChange?.(this.tier)
@@ -184,6 +227,7 @@ export class OrganismHost {
       return { x: e.clientX - r.left, y: e.clientY - r.top }
     }
     const move = (e: PointerEvent) => {
+      this.noteInput()
       if (e.pointerType !== 'mouse') return
       const p = local(e)
       this.model.pointerMove(p.x, p.y)
@@ -204,6 +248,7 @@ export class OrganismHost {
       el,
       {
         start: (x, y) => {
+          this.noteInput()
           const i = this.model.hitTest(x, y)
           this.pressAt = { x, y, i }
           if (i < 0) return true // still track for tap detection
@@ -218,6 +263,7 @@ export class OrganismHost {
           }
         },
         end: (vx, vy, e) => {
+          this.noteInput()
           const press = this.pressAt
           this.pressAt = null
           if (this.model.isDragging) this.model.endDrag(vx, vy)
@@ -276,7 +322,7 @@ export class OrganismHost {
   setMotion(level: OrganismHostOptions['motion']): void {
     this.motion = level
     this.model.idle = level === 'full'
-    if (level === 'minimal') this.degradeTo('static')
+    if (level === 'minimal') this.setTier('static', true)
     this.wake()
   }
 
@@ -293,6 +339,7 @@ export class OrganismHost {
   }
 
   dispose(): void {
+    clearTimeout(this.restoreTimer)
     this.openingTimers.forEach((t) => clearTimeout(t))
     this.ticker.dispose()
     this.pointerDisposers.forEach((d) => d())

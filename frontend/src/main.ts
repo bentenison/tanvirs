@@ -13,4 +13,6 @@ const { app, router } = createApp(createWebHistory(), { hydrate: prerendered })
 
 router.isReady().then(() => {
   app.mount(container)
+  // Read by "The Request" hero to show how long rendering took.
+  performance.mark?.('app-mounted')
 })

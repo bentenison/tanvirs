@@ -1,6 +1,7 @@
 <template>
   <div class="home">
     <HeroStage />
+    <AskSection />
     <WorkSection />
     <CapabilitiesSection />
     <PlaygroundSection />
@@ -28,6 +29,7 @@ export default defineComponent({
   components: {
     HeroStage,
     WritingSection,
+    AskSection: lazy(() => import('@/components/sections/AskSection.vue')),
     WorkSection: lazy(() => import('@/components/sections/WorkSection.vue')),
     CapabilitiesSection: lazy(() => import('@/components/sections/CapabilitiesSection.vue')),
     PlaygroundSection: lazy(() => import('@/components/sections/PlaygroundSection.vue')),
